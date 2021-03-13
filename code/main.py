@@ -7,7 +7,11 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Instances parameters
-    parser.add_argument('--infile', type=str, default='input')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_trivialA.txt')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_B.txt')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_C.txt')
+    parser.add_argument('--infile', type=str, default='instances/eternity_Complete.txt')
     parser.add_argument('--outfile', type=str, default='output')
     parser.add_argument('--visufile', type=str, default='sol.png')
 
@@ -27,10 +31,11 @@ if __name__ == '__main__':
     e = eternity_puzzle.EternityPuzzle(args.infile)
     print(e.piece_list)
 
-    solution_random, cost_sol = solver.solve_best_random(e, 10)
-    print(solution_random)
+    # solution, cost_sol = solver.solve_best_random(e, 10)
+    solution, cost_sol = solver.solve_advance(e)
+    print(solution)
     print(cost_sol)
-    e.display_solution(solution_random,args.visufile)
-    e.print_solution(solution_random, args.outfile)
+    e.display_solution(solution,args.visufile)
+    e.print_solution(solution, args.outfile)
 
-    print(e.verify_solution(solution_random))
+    print(e.verify_solution(solution))
