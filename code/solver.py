@@ -154,19 +154,61 @@ def children(parent1,parent2,piece_list):
     # # IDEA 1 : split in half
     # child1 = parent1[:int(n/2)] + parent2[int(n/2):]
     # child2 = parent2[:int(n/2)] + parent1[int(n/2):]
-    #IDEA 2 : random
-    child1 = []
-    child2 = []
-    for i in range(n):
-        if random.randint(0,1) == 0:
-            child1.append(parent1[i])
-            child2.append(parent2[i])
-        else:
-            child2.append(parent1[i])
-            child1.append(parent2[i])
+    # child1,child2 = equilibrate(copy.deepcopy(child1),copy.deepcopy(child2),piece_list)
+    # #IDEA 2 : random
+    # child1 = []
+    # child2 = []
+    # for i in range(n):
+    #     if random.randint(0,1) == 0:
+    #         child1.append(parent1[i])
+    #         child2.append(parent2[i])
+    #     else:
+    #         child2.append(parent1[i])
+    #         child1.append(parent2[i])
+    # child1,child2 = equilibrate(child1,child2,piece_list)
+    # IDEA 3 : PMX
+    child1,child2 = PMX(parent1,parent2,piece_list)
+    return child1,child2
 
-    child1,child2 = equilibrate(child1,child2,piece_list)
-    return copy.deepcopy(child1),copy.deepcopy(child2)
+def PMX(parent1,parent2,piece_list):
+    n = len(piece_list)
+    inter1 = random.randint(0,n-2)
+    inter2 = random.randint(inter1+1, n-1)
+
+    cross1 = parent1[inter1:inter2+1]
+    cross2 = parent2[inter1:inter2+1]
+    to_switch = dict()
+    for i in range(len(cross1)):
+        keys = list(to_switch.keys())
+        p1id = cross1[i].id
+        p2id = cross2[i].id
+        if p1id in keys:
+            to_switch[p2id] = to_switch[p1id]
+            to_switch[to_switch[p1id]] = p2id
+            to_switch.pop(p1id)
+        elif p2id in keys:
+            to_switch[p1id] = to_switch[p2id]
+            to_switch[to_switch[p2id]] = p1id
+            to_switch.pop(p2id)
+        else:
+            to_switch[p1id] = p2id
+            to_switch[p2id] = p1id
+    keys = list(to_switch.keys())
+    child1 = copy.deepcopy(parent1)
+    child2 = copy.deepcopy(parent2)
+    for i in range(n):
+        if i < inter1 or i > inter2:
+            id1 = child1[i].id
+            if id1 in keys:
+                child1[i] == piece_list[to_switch[id1]]
+            id2 = child2[i].id
+            if id2 in keys:
+                child2[i] == piece_list[to_switch[id2]]
+    
+    child1 = child1[:inter1] + cross2 + child1[inter2+1:]
+    child2 = child2[:inter1] + cross1 + child2[inter2+1:]
+    return child1, child2
+
 
 def equilibrate(child1,child2,piece_list):
     # remove double pieces and replace with missing pieces
@@ -239,7 +281,7 @@ def genetic_algorithm(puzzle):
     
     population = sorted(population,key=lambda s: puzzle.get_total_n_conflict(s))
 
-    for k in range(1000): # will be replace with time
+    for k in range(200): # will be replace with time
 
         # classify from best to worst our population
         if k % 20 == 0:
