@@ -151,8 +151,26 @@ def simulated_annealing(puzzle):
 
 def children(parent1,parent2,piece_list):
     n = len(piece_list)
+    # # IDEA 1 : split in half
+    # child1 = parent1[:int(n/2)] + parent2[int(n/2):]
+    # child2 = parent2[:int(n/2)] + parent1[int(n/2):]
+    #IDEA 2 : random
+    child1 = []
+    child2 = []
+    for i in range(n):
+        if random.randint(0,1) == 0:
+            child1.append(parent1[i])
+            child2.append(parent2[i])
+        else:
+            child2.append(parent1[i])
+            child1.append(parent2[i])
 
-    child1 = parent1[:int(n/2)] + parent2[int(n/2):]
+    child1,child2 = equilibrate(child1,child2,piece_list)
+    return copy.deepcopy(child1),copy.deepcopy(child2)
+
+def equilibrate(child1,child2,piece_list):
+    # remove double pieces and replace with missing pieces
+    n = len(piece_list)
     piece_inChild1 = [p.id for p in child1]
     missing_inChild1 = [p.id for p in piece_list if p.id not in piece_inChild1]
 
@@ -166,29 +184,29 @@ def children(parent1,parent2,piece_list):
             e = l[0]
             # random chosen element that is missing is child
             i = random.randint(0,len(missing_inChild1) - 1)
-            id = missing_inChild1[i] 
+            id = missing_inChild1.pop(i)
             p = piece_list[id]
             # replace
-            child1[e] = p 
+            child1[e] = p
     
     # same for child 2
-    child2 = parent2[:int(n/2)] + parent1[int(n/2):]
     piece_inChild2 = [p.id for p in child2]
     missing_inChild2 = [p.id for p in piece_list if p.id not in piece_inChild2]
 
     indexes = [[] for _ in range(n)]
     for i,p in enumerate(child2):
-        indexes[p.id].append(i) 
+        indexes[p.id].append(i)
     for l in indexes:
         if len(l) > 1: 
             random.shuffle(l) 
             e = l[0]
             i = random.randint(0,len(missing_inChild2) - 1)
-            id = missing_inChild2[i] 
+            id = missing_inChild2.pop(i)
             p = piece_list[id]
-            child2[e] = p 
-    
+            child2[e] = p
+
     return child1,child2
+
 
 def mutation(child):
     # rotate (or not) for each piece
@@ -206,12 +224,13 @@ def genetic_algorithm(puzzle):
 
     ###############################
     # HYPERPARAMETERS
-    size_population = 50
+    size_population = 300
     assert size_population % 2 == 0, "Size population should be an even number"
     mutation_probability = 0.3
     ###############################
     print("Size population:",size_population)
     print("Mutation probability:",mutation_probability)
+    print("="*30)
 
     # initialize population
     population = []
@@ -220,16 +239,18 @@ def genetic_algorithm(puzzle):
     
     population = sorted(population,key=lambda s: puzzle.get_total_n_conflict(s))
 
-    for k in range(5): # will be replace with time
+    for k in range(1000): # will be replace with time
 
         # classify from best to worst our population
-        if k % 1 == 0:
+        if k % 20 == 0:
             print(k,"Best solution",puzzle.get_total_n_conflict(population[0]))
 
         new_children = []
         for i in range(0,len(population),2):
             parent1,parent2 = population[i],population[i+1] # get two parents
             child1,child2 = children(parent1,parent2,piece_list) # get 2 childs
+            # assert puzzle.verify_solution(child1), f"At {i}\nparent1 : {list(map(lambda p: p.id,parent1))}\nparent2 : {list(map(lambda p: p.id,parent2))}\nchild : {list(map(lambda p: p.id,child1))}"
+            # assert puzzle.verify_solution(child2), f"At {i}\nparent1 : {list(map(lambda p: p.id,parent1))}\nparent2 : {list(map(lambda p: p.id,parent2))}\nchild : {list(map(lambda p: p.id,child2))}"
             if random.random() < mutation_probability: # mutate
                 mutation(child1)
             if random.random() < mutation_probability: # mutate
@@ -239,7 +260,6 @@ def genetic_algorithm(puzzle):
         
         population = population + new_children
         population = sorted(population,key=lambda s: puzzle.get_total_n_conflict(s))
-        print(k,"Best solution",puzzle.get_total_n_conflict(population[0]))
         population = population[:int(len(population)/2)]
 
     population = sorted(population,key=lambda s: puzzle.get_total_n_conflict(s))
