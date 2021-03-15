@@ -13,11 +13,40 @@ BLACK = 23
 RED = 24
 WHITE = 25
 
-NORTH = 0
-SOUTH = 1
-WEST = 2
-EAST = 3
+N = 0 # north
+S = 1 # south
+W = 2 # west
+E = 3 # est
 
+
+class Piece:
+    def __init__(self,id,colors):
+        self.id = id
+        self.colors = colors
+    def __str__(self):
+        return f"{self.id} {self.colors}"
+    def __repr__(self):
+        return self.__str__()
+    
+    def isWall(self):
+        for c in self.colors:
+            if c == 0: return True
+        return False
+    
+    def isCorner(self):
+        c = self.colors
+        return c[N] == 0 and c[E] == 0 or c[E] == 0 and c[S] == 0 or c[S] == 0 and c[W] == 0 or c[W] == 0 and c[N] == 0
+    
+    def rotate(self,to):
+        # to : value between 0 and 3 = describes which rotation we do
+        c = self.colors
+        rotation_0 = c
+        rotation_90 = (c[2], c[3], c[1], c[0])
+        rotation_180 = (c[1], c[0], c[3], c[2])
+        rotation_270 = (c[3], c[2], c[0], c[1])
+        rots = [rotation_0, rotation_90, rotation_180, rotation_270]
+        self.colors = rots[to]
+        
 
 class EternityPuzzle:
 
@@ -33,22 +62,22 @@ class EternityPuzzle:
 
             flatten = lambda l: [item for sublist in l for item in sublist]
 
-            self.piece_list = [(int(x.split()[0]), int(x.split()[1]), int(x.split()[2]), int(x.split()[3])) for line in
-                               lines[1:] for x in line.strip().split('\n')]
+            self.piece_list = [Piece(i,(int(x.split()[0]), int(x.split()[1]), int(x.split()[2]), int(x.split()[3]))) for i,line in
+                               enumerate(lines[1:]) for x in line.strip().split('\n')]
 
-            self.n_color = max(flatten(self.piece_list)) + 1
+            self.n_color = max(flatten(list(map(lambda p: p.colors, self.piece_list)))) + 1
 
             assert (len(self.piece_list) == self.n_piece)
 
             for p in self.piece_list:
-                assert (len(p) == 4)
+                assert (len(p.colors) == 4)
 
     def generate_rotation(self, piece):
-
-        initial_shape = piece
-        rotation_90 = (piece[2], piece[3], piece[1], piece[0])
-        rotation_180 = (piece[1], piece[0], piece[3], piece[2])
-        rotation_270 = (piece[3], piece[2], piece[0], piece[1])
+        c = piece.colors
+        initial_shape = c
+        rotation_90 = (c[2], c[3], c[1], c[0])
+        rotation_180 = (c[1], c[0], c[3], c[2])
+        rotation_270 = (c[3], c[2], c[0], c[1])
 
         return [initial_shape, rotation_90, rotation_180, rotation_270]
 
@@ -63,22 +92,22 @@ class EternityPuzzle:
                 k_east = self.board_size * j + (i - 1)
                 k_south = self.board_size * (j - 1) + i
 
-                if i > 0 and solution[k][WEST] != solution[k_east][EAST]:
+                if i > 0 and solution[k].colors[W] != solution[k_east].colors[E]:
                     n_conflict += 1
 
-                if i == 0 and solution[k][WEST] != GRAY:
+                if i == 0 and solution[k].colors[W] != GRAY:
                     n_conflict += 1
 
-                if i == self.board_size - 1 and solution[k][EAST] != GRAY:
+                if i == self.board_size - 1 and solution[k].colors[E] != GRAY:
                     n_conflict += 1
 
-                if j > 0 and solution[k][SOUTH] != solution[k_south][NORTH]:
+                if j > 0 and solution[k].colors[S] != solution[k_south].colors[N]:
                     n_conflict += 1
 
-                if j == 0 and solution[k][SOUTH] != GRAY:
+                if j == 0 and solution[k].colors[S] != GRAY:
                     n_conflict += 1
 
-                if j == self.board_size - 1 and solution[k][NORTH] != GRAY:
+                if j == self.board_size - 1 and solution[k].colors[N] != GRAY:
                     n_conflict += 1
 
         return n_conflict
@@ -131,31 +160,31 @@ class EternityPuzzle:
                     k_south = self.board_size * (j - 2) + (i - 1)
 
                     if i == 1:
-                        is_triangle_west_valid = (solution[k][WEST] == GRAY)  # 1 for Gray
+                        is_triangle_west_valid = (solution[k].colors[W] == GRAY)  # 1 for Gray
                     elif i == size - 2:
-                        is_triangle_east_valid = (solution[k][EAST] == GRAY)
-                        is_triangle_west_valid = solution[k][WEST] == solution[k_east][EAST]
+                        is_triangle_east_valid = (solution[k].colors[E] == GRAY)
+                        is_triangle_west_valid = solution[k].colors[W] == solution[k_east].colors[E]
                     else:
-                        is_triangle_west_valid = solution[k][WEST] == solution[k_east][EAST]
+                        is_triangle_west_valid = solution[k].colors[W] == solution[k_east].colors[E]
 
                     if j == 1:
-                        is_triangle_south_valid = (solution[k][SOUTH] == GRAY)
+                        is_triangle_south_valid = (solution[k].colors[S] == GRAY)
                     elif j == size - 2:
-                        is_triangle_north_valid = (solution[k][NORTH] == GRAY)
-                        is_triangle_south_valid = solution[k][SOUTH] == solution[k_south][NORTH]
+                        is_triangle_north_valid = (solution[k].colors[N] == GRAY)
+                        is_triangle_south_valid = solution[k].colors[S] == solution[k_south].colors[N]
                     else:
-                        is_triangle_south_valid = solution[k][SOUTH] == solution[k_south][NORTH]
+                        is_triangle_south_valid = solution[k].colors[S] == solution[k_south].colors[N]
 
-                    patch_south = patches.PathPatch(triangle_south_path, facecolor=color_dict[solution[k][SOUTH]],
+                    patch_south = patches.PathPatch(triangle_south_path, facecolor=color_dict[solution[k].colors[S]],
                                                     edgecolor=color_dict[BLACK])
 
-                    patch_north = patches.PathPatch(triangle_north_path, facecolor=color_dict[solution[k][NORTH]],
+                    patch_north = patches.PathPatch(triangle_north_path, facecolor=color_dict[solution[k].colors[N]],
                                                     edgecolor=color_dict[BLACK])
 
-                    patch_east = patches.PathPatch(triangle_east_path, facecolor=color_dict[solution[k][EAST]],
+                    patch_east = patches.PathPatch(triangle_east_path, facecolor=color_dict[solution[k].colors[E]],
                                                    edgecolor=color_dict[BLACK])
 
-                    patch_west = patches.PathPatch(triangle_west_path, facecolor=color_dict[solution[k][WEST]],
+                    patch_west = patches.PathPatch(triangle_west_path, facecolor=color_dict[solution[k].colors[W]],
                                                    edgecolor=color_dict[BLACK])
 
                     if not is_triangle_south_valid:
@@ -219,7 +248,7 @@ class EternityPuzzle:
             file.write(str(self.board_size))
             for piece in solution:
                 file.write("\n")
-                for c in piece:
+                for c in piece.colors:
                     file.write(str(c) + " ")
 
     def build_color_dict(self):
