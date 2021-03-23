@@ -1,9 +1,92 @@
+import eternity_puzzle
 import math
 import random
 
 import numpy as np
 import copy
 
+
+def solve_GRASP(eternity_puzzle, n_trial):
+    """
+    Random solution of the problem (best of n_trial random solution generated)
+    :param eternity_puzzle: object describing the input
+    :param n_trial: number of random solution generated
+    :return: a tuple (solution, cost) where solution is a list of the pieces (rotations applied) and
+        cost is the cost of the solution, the solution is the best among the n_trial generated ones
+    """
+    best_n_conflict = 1000000
+    best_solution = None
+
+    for i in range(n_trial):
+        # Random Solution
+        # cur_sol, cur_n_conflict = solve_random(eternity_puzzle)
+        # Greedy Random construction
+        cur_sol, cur_n_conflict = solve_greedyRandom(i, eternity_puzzle)
+        # Local Search
+        N = fast_neighborhood(cur_sol, eternity_puzzle)
+        loc_best_conflict = eternity_puzzle.get_total_n_conflict(N[0])
+        # Best choice from neighborhood
+        for j in range(len(N)):
+            loc_cur_conflict = eternity_puzzle.get_total_n_conflict(N[j])
+            if loc_cur_conflict < loc_best_conflict:
+                loc_best_conflict = loc_cur_conflict
+                cur_sol = N[j]
+                cur_n_conflict = loc_cur_conflict
+        # Random Choice from neighborhood
+        # cur_sol = N[random.randint(0, (len(N) - 1))]
+        # cur_n_conflict = eternity_puzzle.get_total_n_conflict(cur_sol)
+        # Update Best
+        if cur_n_conflict < best_n_conflict:
+            best_n_conflict = cur_n_conflict
+            best_solution = cur_sol
+
+    assert best_solution != None
+
+    return best_solution, best_n_conflict
+
+def solve_greedyRandom(alpha, puzzle):
+
+    solution = []
+    remaining_piece = copy.deepcopy(puzzle.piece_list)
+    # rnd_color = 0
+    rnd_color = alpha % 26
+    for i in range(puzzle.n_piece):
+        range_remaining = np.arange(len(remaining_piece))
+        if i == 0:
+            # Random choice
+            piece_idx = np.random.choice(range_remaining)
+            permutation_idx = np.random.choice(np.arange(4))
+        else:
+            # Greedy choice
+            best_n_conflict = 1000
+            for j in range(len(remaining_piece)):
+                for k in range(4):
+                    cur_sol = copy.deepcopy(solution)
+                    append_piece = copy.deepcopy(remaining_piece[j])
+                    append_piece.rotate(k)
+                    # append_piece = remaining_piece[j]
+                    cur_sol.append(append_piece)
+                    # Append grey tiles to pad the solution
+                    temp_sol = copy.deepcopy(cur_sol)
+                    for l in range(len(remaining_piece)):
+                        grey_idx = i + l
+                        grey_piece = eternity_puzzle.Piece(rnd_color, (rnd_color, rnd_color, rnd_color, rnd_color))
+                        temp_sol.append(grey_piece)
+
+                    cur_n_conf = puzzle.get_total_n_conflict(temp_sol)
+                    if cur_n_conf < best_n_conflict:
+                        piece_idx = j
+                        permutation_idx = k
+                        best_n_conflict = cur_n_conf
+
+        piece = remaining_piece[piece_idx]
+
+        piece.rotate(permutation_idx)
+
+        solution.append(piece)
+        remaining_piece.remove(piece)
+
+    return solution, puzzle.get_total_n_conflict(solution)
 
 def solve_random(eternity_puzzle):
     """
@@ -69,7 +152,10 @@ def neighborhood(s,puzzle):
         for rot in puzzle.generate_rotation(piece): # get all rotations of the piece (not the random one)
             new_s = copy.deepcopy(s)
             new_s[i] = new_s[to_switch_with] #random element take place at i
-            new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
+            # This returns a tuple and not a piece
+            # new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
+            rot_piece = eternity_puzzle.Piece(i, rot)
+            new_s[to_switch_with] = rot_piece
             neighbors.append(new_s)
     return neighbors
 
@@ -81,7 +167,8 @@ def fast_neighborhood(s,puzzle):
         rot = random.choice(puzzle.generate_rotation(piece)) # get one rotation of the piece (not the random one)
         new_s = copy.deepcopy(s)
         new_s[i] = new_s[to_switch_with] #random element take place at i
-        new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
+        rot_piece = eternity_puzzle.Piece(i, rot)
+        new_s[to_switch_with] = rot_piece
         neighbors.append(new_s)
     return neighbors
 

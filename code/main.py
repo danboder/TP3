@@ -8,12 +8,13 @@ def parse_arguments():
 
     # Instances parameters
     # parser.add_argument('--infile', type=str, default='instances/eternity_trivialA.txt')
-    parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
     # parser.add_argument('--infile', type=str, default='instances/eternity_B.txt')
     # parser.add_argument('--infile', type=str, default='instances/eternity_C.txt')
-    # parser.add_argument('--infile', type=str, default='instances/eternity_Complete.txt')
+    parser.add_argument('--infile', type=str, default='instances/eternity_Complete.txt')
     parser.add_argument('--outfile', type=str, default='output')
     parser.add_argument('--visufile', type=str, default='sol.png')
+    # parser.add_argument('--greedytriv', type=str, default='soltriv.png')
 
     return parser.parse_args()
 
@@ -29,14 +30,15 @@ if __name__ == '__main__':
     print("***********************************************************")
 
     e = eternity_puzzle.EternityPuzzle(args.infile)
-    print(e.piece_list)
-
+    # solution, cost_sol = solver.solve_random(e)
     # solution, cost_sol = solver.solve_best_random(e, 10)
-    solution, cost_sol = solver.solve_advance(e)
-
+    # solution, cost_sol = solver.solve_advance(e)
+    # solution, cost_sol = solver.solve_GRASP(e, 100)
+    solution, cost_sol = solver.solve_greedyRandom(1, e)
     print(solution)
     print(cost_sol)
-    e.display_solution(solution,args.visufile)
+
+    e.display_solution(solution, args.visufile)
     e.print_solution(solution, args.outfile)
 
     print(e.verify_solution(solution))

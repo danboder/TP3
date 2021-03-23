@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.lines import Line2D
 import numpy as np
+import copy
 
 import math
 import copy
@@ -13,31 +14,33 @@ BLACK = 23
 RED = 24
 WHITE = 25
 
-N = 0 # north
-S = 1 # south
-W = 2 # west
-E = 3 # est
+N = 0  # north
+S = 1  # south
+W = 2  # west
+E = 3  # est
 
 
 class Piece:
-    def __init__(self,id,colors):
+    def __init__(self, id, colors):
         self.id = id
         self.colors = colors
+
     def __str__(self):
         return f"{self.id} {self.colors}"
+
     def __repr__(self):
         return self.__str__()
-    
+
     def isWall(self):
         for c in self.colors:
             if c == 0: return True
         return False
-    
+
     def isCorner(self):
         c = self.colors
         return c[N] == 0 and c[E] == 0 or c[E] == 0 and c[S] == 0 or c[S] == 0 and c[W] == 0 or c[W] == 0 and c[N] == 0
-    
-    def rotate(self,to):
+
+    def rotate(self, to):
         # to : value between 0 and 3 = describes which rotation we do
         c = self.colors
         rotation_0 = c
@@ -46,7 +49,7 @@ class Piece:
         rotation_270 = (c[3], c[2], c[0], c[1])
         rots = [rotation_0, rotation_90, rotation_180, rotation_270]
         self.colors = rots[to]
-        
+
 
 class EternityPuzzle:
 
@@ -62,7 +65,8 @@ class EternityPuzzle:
 
             flatten = lambda l: [item for sublist in l for item in sublist]
 
-            self.piece_list = [Piece(i,(int(x.split()[0]), int(x.split()[1]), int(x.split()[2]), int(x.split()[3]))) for i,line in
+            self.piece_list = [Piece(i, (int(x.split()[0]), int(x.split()[1]), int(x.split()[2]), int(x.split()[3])))
+                               for i, line in
                                enumerate(lines[1:]) for x in line.strip().split('\n')]
 
             self.n_color = max(flatten(list(map(lambda p: p.colors, self.piece_list)))) + 1
@@ -82,17 +86,15 @@ class EternityPuzzle:
         return [initial_shape, rotation_90, rotation_180, rotation_270]
 
     def get_total_n_conflict(self, solution):
-
         n_conflict = 0
 
         for j in range(self.board_size):
             for i in range(self.board_size):
 
                 k = self.board_size * j + i
-                k_east = self.board_size * j + (i - 1)
+                k_west = self.board_size * j + (i - 1)
                 k_south = self.board_size * (j - 1) + i
-
-                if i > 0 and solution[k].colors[W] != solution[k_east].colors[E]:
+                if i > 0 and solution[k].colors[W] != solution[k_west].colors[E]:
                     n_conflict += 1
 
                 if i == 0 and solution[k].colors[W] != GRAY:
@@ -109,7 +111,46 @@ class EternityPuzzle:
 
                 if j == self.board_size - 1 and solution[k].colors[N] != GRAY:
                     n_conflict += 1
+        return n_conflict
 
+    def get_total_n_conflict_incomplete(self, solution):
+        # Need to update so this works if input solution is incomplete
+        n_conflict = 0
+
+        for j in range(self.board_size):
+            for i in range(self.board_size):
+
+                k = self.board_size * j + i
+                k_east = self.board_size * j + (i - 1)
+                k_south = self.board_size * (j - 1) + i
+                # If the next entry of the solution doesnt exist, the solution is not fully populated
+                try:
+                    if solution[k] is None:
+                        return n_conflict
+                except TypeError:
+                    return n_conflict
+
+                if i > 0 and solution[k].colors[W] != solution[k_east].colors[E]:
+                    n_conflict += 1
+
+                if i == 0 and solution[k].colors[W] != GRAY:
+                    n_conflict += 1
+
+                if i == self.board_size - 1 and solution[k].colors[E] != GRAY:
+                    n_conflict += 1
+
+                try:
+                    if j > 0 and solution[k].colors[S] != solution[k_south].colors[N]:
+                        n_conflict += 1
+                except TypeError or AttributeError:
+                    if j > 0 and solution[k].colors[S] != GRAY:
+                        n_conflict += 1
+
+                if j == 0 and solution[k].colors[S] != GRAY:
+                    n_conflict += 1
+
+                if j == self.board_size - 1 and solution[k].colors[N] != GRAY:
+                    n_conflict += 1
         return n_conflict
 
     def display_solution(self, solution, output_file):
@@ -287,7 +328,7 @@ class EternityPuzzle:
         all = self.generate_rotation(piece)
         return min(all)
 
-    def verify_solution(self,solution):
+    def verify_solution(self, solution):
         hash_init = sorted([self.hash_piece(p) for p in self.piece_list])
         hash_sol = sorted([self.hash_piece(p) for p in solution])
 
