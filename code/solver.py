@@ -18,8 +18,6 @@ def solve_GRASP(eternity_puzzle, n_trial):
     best_solution = None
 
     for i in range(n_trial):
-        # Random Solution
-        # cur_sol, cur_n_conflict = solve_random(eternity_puzzle)
         # Greedy Random construction
         cur_sol, cur_n_conflict = solve_greedyRandom(i, eternity_puzzle)
         # Local Search
@@ -32,9 +30,9 @@ def solve_GRASP(eternity_puzzle, n_trial):
                 loc_best_conflict = loc_cur_conflict
                 cur_sol = N[j]
                 cur_n_conflict = loc_cur_conflict
-        # Random Choice from neighborhood
-        # cur_sol = N[random.randint(0, (len(N) - 1))]
-        # cur_n_conflict = eternity_puzzle.get_total_n_conflict(cur_sol)
+        # Random Choice from neighborhood (Faster)
+            # cur_sol = N[random.randint(0, (len(N) - 1))]
+            # cur_n_conflict = eternity_puzzle.get_total_n_conflict(cur_sol)
         # Update Best
         if cur_n_conflict < best_n_conflict:
             best_n_conflict = cur_n_conflict
@@ -51,33 +49,26 @@ def solve_greedyRandom(alpha, puzzle):
     # rnd_color = 0
     rnd_color = alpha % 26
     for i in range(puzzle.n_piece):
-        range_remaining = np.arange(len(remaining_piece))
-        if i == 0:
-            # Random choice
-            piece_idx = np.random.choice(range_remaining)
-            permutation_idx = np.random.choice(np.arange(4))
-        else:
-            # Greedy choice
-            best_n_conflict = 1000
-            for j in range(len(remaining_piece)):
-                for k in range(4):
-                    cur_sol = copy.deepcopy(solution)
-                    append_piece = copy.deepcopy(remaining_piece[j])
-                    append_piece.rotate(k)
-                    # append_piece = remaining_piece[j]
-                    cur_sol.append(append_piece)
-                    # Append grey tiles to pad the solution
-                    temp_sol = copy.deepcopy(cur_sol)
-                    for l in range(len(remaining_piece)):
-                        grey_idx = i + l
-                        grey_piece = eternity_puzzle.Piece(rnd_color, (rnd_color, rnd_color, rnd_color, rnd_color))
-                        temp_sol.append(grey_piece)
+        # Greedy choice
+        best_n_conflict = 1000
+        for j in range(len(remaining_piece)):
+            for k in range(4):
+                cur_sol = copy.deepcopy(solution)
+                append_piece = copy.deepcopy(remaining_piece[j])
+                append_piece.rotate(k)
+                cur_sol.append(append_piece)
+                # Append grey tiles to pad the solution
+                temp_sol = copy.deepcopy(cur_sol)
+                for l in range(len(remaining_piece)):
+                    grey_idx = i + l
+                    grey_piece = eternity_puzzle.Piece(rnd_color, (rnd_color, rnd_color, rnd_color, rnd_color))
+                    temp_sol.append(grey_piece)
 
-                    cur_n_conf = puzzle.get_total_n_conflict(temp_sol)
-                    if cur_n_conf < best_n_conflict:
-                        piece_idx = j
-                        permutation_idx = k
-                        best_n_conflict = cur_n_conf
+                cur_n_conf = puzzle.get_total_n_conflict(temp_sol)
+                if cur_n_conf < best_n_conflict:
+                    piece_idx = j
+                    permutation_idx = k
+                    best_n_conflict = cur_n_conf
 
         piece = remaining_piece[piece_idx]
 
@@ -172,7 +163,7 @@ def fast_neighborhood(s,puzzle):
         neighbors.append(new_s)
     return neighbors
 
-def simulated_annealing(puzzle):
+def simulated_annealing(s, fs, puzzle):
 
     best_s = None
     best_f = 1e10
@@ -188,8 +179,7 @@ def simulated_annealing(puzzle):
     #########################################
 
     for _ in range(nb_restart):
-        print("START")
-        s,fs = solve_best_random(puzzle,20)
+
         star = s
         fstar = fs
 
@@ -217,13 +207,13 @@ def simulated_annealing(puzzle):
                     re_count = 0
                     star = s
                     fstar = fs
-                    print("improvement at",i,":",fstar)
+                    # print("improvement at",i,":",fstar)
             else:
                 re_count += 1
             T = alphaT * T
 
         if fstar < best_f:
-            print("NEW BEST",fstar)
+            print("update:", fstar)
             best_f = fstar
             best_s = star
     
