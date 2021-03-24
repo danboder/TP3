@@ -27,6 +27,9 @@ class Piece:
         return f"{self.id} {self.colors}"
     def __repr__(self):
         return self.__str__()
+    def __eq__(self, other):
+        if other == None: return False
+        return self.id == other.id
     
     def isWall(self):
         return 0 in self.colors
