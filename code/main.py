@@ -8,8 +8,8 @@ def parse_arguments():
 
     # Instances parameters
     # parser.add_argument('--infile', type=str, default='instances/eternity_trivialA.txt')
-    # parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
-    parser.add_argument('--infile', type=str, default='instances/eternity_B.txt')
+    parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
+    # parser.add_argument('--infile', type=str, default='instances/eternity_B.txt')
     # parser.add_argument('--infile', type=str, default='instances/eternity_C.txt')
     # parser.add_argument('--infile', type=str, default='instances/eternity_Complete.txt')
     parser.add_argument('--outfile', type=str, default='output')

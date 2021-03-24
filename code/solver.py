@@ -183,7 +183,6 @@ def greedy_construction(alpha,puzzle):
                 new_list[k_west] if col > 0 else WALLPIECE, new_list[k_east] if col < size - 1 else WALLPIECE]
             conflicts = []
             all_pieces = []
-            print("AROUND",around)
             for p in corner_pieces:
                 for pi in puzzle.generate_rotation(p):
                     nb_conflicts = 0
@@ -199,7 +198,6 @@ def greedy_construction(alpha,puzzle):
             maxf = conflicts_sorted[-1]
             RCL = [p for i,p in enumerate(pieces_sorted) if conflicts_sorted[i] <= minf + alpha * (maxf - minf)]
             chosen = random.choice(RCL)
-            print("chosen",chosen)
             corner_pieces.pop(corner_pieces.index(chosen))
             new_list[k] = chosen
     
@@ -220,18 +218,17 @@ def hill_climbing(s,steps,puzzle):
 def grasp(puzzle,alpha,nb_trials):
     star = None
     fstar = 1e8
+    print("*"*50)
+    print("Construction with Grasp")
     for _ in range(nb_trials):
-        print("*"*50)
         s = greedy_construction(alpha,puzzle)
         f = puzzle.get_total_n_conflict(s)
-        print("Construction with Grasp", end=" ")
         # s,f = hill_climbing(s,5,puzzle)
-        print(f)
+        print(f,end=" ")
         if f < fstar:
             fstar = f
             star = s
     return star,fstar
-
 
 ####################################################
 # SIMULATED ANNEALING
@@ -304,19 +301,30 @@ def fast_neighborhood_placed(s,puzzle):
         else:
             list_i_center.append(i)
 
-    for i,piece in enumerate(s):
-        t = p.getType()
-        if t == 'corner':
-            to_switch_with = random.choice(list_i_corners) # select element random with the right type
-        elif t == 'wall':
-            to_switch_with = random.choice(list_i_wall)
-        else:
-            to_switch_with = random.choice(list_i_center)
-        rot = random.choice(puzzle.generate_rotation(piece)) # get one rotation of the piece (not the random one)
-        new_s = copy.deepcopy(s)
-        new_s[i] = new_s[to_switch_with] #random element take place at i
-        new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
-        neighbors.append(new_s)
+    for ico,corner in enumerate(s):
+        if corner.getType() == 'corner':
+            for iwa,wall in enumerate(s):
+                if wall.getType() == 'wall':
+                    # for ice,center in enumerate(s):
+                    #     if center.getType() == 'center':
+
+                            ice = random.choice(list_i_center)
+                            center = s[ice]
+                            corner_to_switch_with = random.choice(list_i_corners) # select element random with the right type
+                            wall_to_switch_with = random.choice(list_i_wall)
+                            center_to_switch_with = random.choice(list_i_center)
+                            rot_corner = random.choice(puzzle.generate_rotation(corner)) # get one rotation of the piece (not the random one)
+                            rot_wall = random.choice(puzzle.generate_rotation(wall))
+                            rot_center = random.choice(puzzle.generate_rotation(center))
+                            new_s = copy.deepcopy(s)
+                            new_s[ico] = new_s[corner_to_switch_with] #random element take place at ico, we swith for the same types
+                            new_s[corner_to_switch_with] = rot_corner # we set the piece with rotation at the random element's place
+                            new_s[iwa] = new_s[wall_to_switch_with]
+                            new_s[wall_to_switch_with] = rot_wall
+                            new_s[ice] = new_s[center_to_switch_with]
+                            new_s[center_to_switch_with] = rot_center
+                            neighbors.append(new_s)
+
     return neighbors
 
 def simulated_annealing(puzzle):
@@ -330,54 +338,57 @@ def simulated_annealing(puzzle):
 
     #########################################
     # HYPER PARAMETERS
-    nb_restart = 1
-    T = 1
+    nb_restart = 5
+    T = 4
     alphaT = 0.98
-    betaT = 0.2
-    re_lim = 30
+    betaT = 0.5
+    re_lim = 20
     fast_neighbor = True
-    alpha_grasp = 0.01
-    nb_tries_grasp = 1
+    alpha_grasp = 0.3
+    nb_tries_grasp = 10
     #########################################
+    maxT = T
 
     for _ in range(nb_restart):
-        print("START")
+        print("NEW START")
         # s,fs = solve_best_random(puzzle,20)
         s,fs = grasp(puzzle,alpha_grasp,nb_tries_grasp)
         star = s
         fstar = fs
 
-        print("Best from Grasp :",fs)
+        print("Best :",fs)
 
-        # re_count = 0
-        # maxT = T
+        re_count = 0
+        T = maxT
 
-        # change = True
-        # for i in range(1000): # TODO : change with time
-        #     if re_count >= re_lim:
-        #         G = fast_neighborhood_placed(star,puzzle) if fast_neighbor else neighborhood_placed(star,puzzle)
-        #         # V = validate_neighboorhood(G, clients, W)
-        #         re_count = 0 # reset counter
-        #         T = min(T + betaT, maxT)
-        #         print("Restart from previous best, temperature now of",T)
-        #     if change:
-        #         G = fast_neighborhood_placed(s,puzzle) if fast_neighbor else neighborhood_placed(s,puzzle)
-        #         change = False
-        #     c = G[random.randint(0,len(G)-1)]
-        #     fc = puzzle.get_total_n_conflict(c)
-        #     delta = fc - fs
-        #     if delta < 0 or random.random() < math.exp(-delta/T):
-        #         change = True
-        #         s = c
-        #         fs = fc
-        #         if fs < fstar:
-        #             re_count = 0
-        #             star = s
-        #             fstar = fs
-        #             print("improvement at",i,":",fstar, ", Temperature:",T)
-        #     else:
-        #         re_count += 1
-        #     T = alphaT * T
+        change = True
+        for i in range(10000): # TODO : change with time
+            if i % 100 == 0:
+                print(f"{i} current best: {fs}")
+            if re_count >= re_lim:
+                G = fast_neighborhood_placed(star,puzzle) if fast_neighbor else neighborhood_placed(star,puzzle)
+                # V = validate_neighboorhood(G, clients, W)
+                re_count = 0 # reset counter
+                T = min(T + betaT, maxT)
+                # print("Restart from previous best, temperature now of",T)
+            if change:
+                G = fast_neighborhood_placed(s,puzzle) if fast_neighbor else neighborhood_placed(s,puzzle)
+                change = False
+            c = G[random.randint(0,len(G)-1)]
+            fc = puzzle.get_total_n_conflict(c)
+            delta = fc - fs
+            if delta < 0 or random.random() < math.exp(-delta/T):
+                change = True
+                s = c
+                fs = fc
+                if fs < fstar:
+                    re_count = 0
+                    star = s
+                    fstar = fs
+                    print("improvement at",i,":",fstar, ", Temperature:",T)
+            else:
+                re_count += 1
+            T = alphaT * T
 
         if fstar < best_f:
             print("NEW BEST",fstar)
