@@ -187,7 +187,7 @@ def simulated_annealing(s, fs, puzzle):
         maxT = T
 
         change = True
-        for i in range(1000):
+        for i in range(2000):
             if re_count >= re_lim:
                 G = fast_neighborhood(star,puzzle) if fast_neighbor else neighborhood(star,puzzle)
                 # V = validate_neighboorhood(G, clients, W)
