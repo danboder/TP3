@@ -29,13 +29,14 @@ class Piece:
         return self.__str__()
     
     def isWall(self):
-        for c in self.colors:
-            if c == 0: return True
-        return False
-    
+        return 0 in self.colors
     def isCorner(self):
         c = self.colors
-        return c[N] == 0 and c[E] == 0 or c[E] == 0 and c[S] == 0 or c[S] == 0 and c[W] == 0 or c[W] == 0 and c[N] == 0
+        return (c[N] == 0 and c[E] == 0) or (c[E] == 0 and c[S] == 0) or (c[S] == 0 and c[W] == 0) or (c[W] == 0 and c[N] == 0)
+    def getType(self):
+        if self.isCorner(): return 'corner'
+        elif self.isWall(): return 'wall'
+        else: return 'center'
     
     def rotate(self,to):
         # to : value between 0 and 3 = describes which rotation we do
@@ -79,7 +80,17 @@ class EternityPuzzle:
         rotation_180 = (c[1], c[0], c[3], c[2])
         rotation_270 = (c[3], c[2], c[0], c[1])
 
+        return [Piece(piece.id,initial_shape), Piece(piece.id,rotation_90), Piece(piece.id,rotation_180), Piece(piece.id,rotation_270)]
+    
+    def generate_rotation_colors(self, piece):
+        c = piece.colors
+        initial_shape = c
+        rotation_90 = (c[2], c[3], c[1], c[0])
+        rotation_180 = (c[1], c[0], c[3], c[2])
+        rotation_270 = (c[3], c[2], c[0], c[1])
+
         return [initial_shape, rotation_90, rotation_180, rotation_270]
+    
 
     def get_total_n_conflict(self, solution):
 
@@ -284,7 +295,7 @@ class EternityPuzzle:
         return color_dict
 
     def hash_piece(self, piece):
-        all = self.generate_rotation(piece)
+        all = self.generate_rotation_colors(piece)
         return min(all)
 
     def verify_solution(self,solution):

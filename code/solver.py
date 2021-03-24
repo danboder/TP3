@@ -32,7 +32,6 @@ def solve_random(eternity_puzzle):
 
     return solution, eternity_puzzle.get_total_n_conflict(solution)
 
-
 def solve_best_random(eternity_puzzle, n_trial):
     """
     Random solution of the problem (best of n_trial random solution generated)
@@ -60,6 +59,7 @@ def solve_best_random(eternity_puzzle, n_trial):
 
 ####################################################
 # SIMULATED ANNEALING
+####################################################
 
 def neighborhood(s,puzzle):
     neighbors = []
@@ -85,6 +85,191 @@ def fast_neighborhood(s,puzzle):
         neighbors.append(new_s)
     return neighbors
 
+def neighborhood_placed(s,puzzle):
+    neighbors = []
+    list_index = [i for i in range(puzzle.n_piece)]
+    for i,piece in enumerate(s):
+        to_switch_with = random.choice(list_index) # select element random
+        while puzzle.piece_list[to_switch_with].getType() != piece.getType(): # but we want the same type (corner, wall or center)
+            to_switch_with = random.choice(list_index)
+        for rot in puzzle.generate_rotation(piece): # get all rotations of the piece (not the random one)
+            new_s = copy.deepcopy(s)
+            new_s[i] = new_s[to_switch_with] #random element take place at i
+            new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
+            neighbors.append(new_s)
+    return neighbors
+
+def fast_neighborhood_placed(s,puzzle):
+    neighbors = []
+    list_index = [i for i in range(puzzle.n_piece)]
+    for i,piece in enumerate(s):
+        to_switch_with = random.choice(list_index) # select element random
+        while puzzle.piece_list[to_switch_with].getType() != piece.getType(): # but we want the same type (corner, wall or center)
+            to_switch_with = random.choice(list_index)
+        rot = random.choice(puzzle.generate_rotation(piece)) # get one rotation of the piece (not the random one)
+        new_s = copy.deepcopy(s)
+        new_s[i] = new_s[to_switch_with] #random element take place at i
+        new_s[to_switch_with] = rot # we set the piece with rotation at the random element's place
+        neighbors.append(new_s)
+    return neighbors
+
+def greedy_construction(alpha,puzzle):
+    pieces = puzzle.piece_list
+    size = puzzle.board_size
+    ids_to_take = [i for i in range(len(pieces))]
+
+    center_pieces = []
+    wall_pieces = []
+    corner_pieces = []
+
+    for p in pieces:
+        if p.isCorner():
+            corner_pieces.append(p)
+        elif p.isWall():
+            wall_pieces.append(p)
+        else:
+            center_pieces.append(p)
+    
+    new_list = [None for _ in range(size**2)]
+    p = random.choice(center_pieces)
+    center_pieces.pop(center_pieces.index(p))
+    line,col = 1,1
+    new_list[size * line + col] = p
+
+
+    ### POSITIONNING THE CENTER PIECES
+    for line in range(1,size-1):
+        for col in range(1,size-1): # for all center pieces
+            if not (line == 1 and col == 1): # already filled
+                k = size * line + col
+                k_east = size * line + (col + 1)
+                k_south = size * (line - 1) + col
+                k_west = size * line + (col - 1)
+                k_north = size * (line + 1) + col
+                around = [
+                    new_list[k_north] , # get piece north
+                    new_list[k_south], # get piece south
+                    new_list[k_east], # get piece east
+                    new_list[k_west] # get piece west
+                ]
+                conflicts = []
+                for p in center_pieces:
+                    p.rotate(random.randint(0,3)) # rotate piece at random
+                    nb_conflicts = 0
+                    if around[0] != None: # north
+                        if around[0].colors[1] != p.colors[0]: nb_conflicts += 1
+                    if around[1] != None: # south
+                        if around[1].colors[0] != p.colors[1]: nb_conflicts += 1
+                    if around[2] != None: # west
+                        if around[2].colors[3] != p.colors[2]: nb_conflicts += 1
+                    if around[3] != None: # east
+                        if around[3].colors[2] != p.colors[3]: nb_conflicts += 1
+                    conflicts.append(nb_conflicts)
+                
+                conflicts_sorted, pieces_sorted = zip(*sorted(zip(conflicts, center_pieces),key=lambda e: e[0]))
+                # this sorts the conflicts list and sorts the list of the pieces following the same order
+                minf = conflicts_sorted[0]
+                maxf = conflicts_sorted[-1] # get min and max value
+                RCL = [p for i,p in enumerate(pieces_sorted) if conflicts_sorted[i] <= minf + alpha * (maxf - minf)]
+                # get RCL
+                chosen = random.choice(RCL) # choose by random in RCL
+                center_pieces.pop(center_pieces.index(chosen))
+                new_list[k] = chosen
+     
+    ### POSITIONNING THE WALL PIECES
+    for line in range(size):
+        for col in range(size):
+            if ((line == 0 or line == size-1) and col != 0 and col != size - 1) or \
+                ((col == 0 or col == size-1) and line != 0 and line != size - 1): # get only the wall places
+                k = size * line + col
+                k_east = size * line + (col + 1)
+                k_south = size * (line - 1) + col
+                k_west = size * line + (col - 1)
+                k_north = size * (line + 1) + col
+                # print(line,col,size)
+                around = [
+                    new_list[k_north] if line < size - 1 else None, new_list[k_south] if line > 0 else None, 
+                    new_list[k_east] if col < size - 1 else None, new_list[k_west] if col > 0 else None ]
+                conflicts = []
+                for p in wall_pieces:
+                    p.rotate(random.randint(0,3)) # rotate piece at random
+                    nb_conflicts = 0
+                    if around[0] != None: # north
+                        if around[0].colors[1] != p.colors[0]: nb_conflicts += 1
+                    if around[1] != None: # south
+                        if around[1].colors[0] != p.colors[1]: nb_conflicts += 1
+                    if around[2] != None: # west
+                        if around[2].colors[3] != p.colors[2]: nb_conflicts += 1
+                    if around[3] != None: # east
+                        if around[3].colors[2] != p.colors[3]: nb_conflicts += 1
+                    conflicts.append(nb_conflicts)
+                
+                conflicts_sorted, pieces_sorted = zip(*sorted(zip(conflicts, wall_pieces),key=lambda e: e[0]))
+                minf = conflicts_sorted[0]
+                maxf = conflicts_sorted[-1]
+                RCL = [p for i,p in enumerate(pieces_sorted) if conflicts_sorted[i] <= minf + alpha * (maxf - minf)]
+                chosen = random.choice(RCL)
+                wall_pieces.pop(wall_pieces.index(chosen))
+                new_list[k] = chosen
+    
+    ### POSITIONNING THE CORNER PIECES
+    for line in [0,size-1]:
+        for col in [0,size-1]: # corners
+            k = size * line + col
+            k_east = size * line + (col + 1)
+            k_south = size * (line - 1) + col
+            k_west = size * line + (col - 1)
+            k_north = size * (line + 1) + col
+            around = [
+                new_list[k_north] if line < size - 1 else None, new_list[k_south] if line > 0 else None, 
+                new_list[k_east] if col < size - 1 else None, new_list[k_west] if col > 0 else None ]
+            conflicts = []
+            for p in corner_pieces:
+                p.rotate(random.randint(0,3))
+                nb_conflicts = 0
+                if around[0] != None:
+                    if around[0].colors[1] != p.colors[0]: nb_conflicts += 1
+                if around[1] != None:
+                    if around[1].colors[0] != p.colors[1]: nb_conflicts += 1
+                if around[2] != None:
+                    if around[2].colors[3] != p.colors[2]: nb_conflicts += 1
+                if around[3] != None:
+                    if around[3].colors[2] != p.colors[3]: nb_conflicts += 1
+                conflicts.append(nb_conflicts)
+            
+            conflicts_sorted, pieces_sorted = zip(*sorted(zip(conflicts, corner_pieces),key=lambda e: e[0]))
+            minf = conflicts_sorted[0]
+            maxf = conflicts_sorted[-1]
+            RCL = [p for i,p in enumerate(pieces_sorted) if conflicts_sorted[i] <= minf + alpha * (maxf - minf)]
+            chosen = random.choice(RCL)
+            corner_pieces.pop(corner_pieces.index(chosen))
+            new_list[k] = chosen
+    
+    return new_list
+
+def hill_climbing(s,steps,puzzle):
+    best_s = s
+    best_f = puzzle.get_total_n_conflict(best_s)
+    for _ in range(steps):
+        neighbors = fast_neighborhood_placed(best_s,puzzle) # keep center pieces in center same for wall pieces and corner pieces
+        for n in neighbors:
+            f = puzzle.get_total_n_conflict(n)
+            if f < best_f:
+                best_f = f
+                best_s = n
+    return best_s,best_f
+
+def grasp(puzzle,alpha,nb_trials):
+    star = None
+    fstar = 1e8
+    for _ in range(nb_trials):
+        s = greedy_construction(alpha,puzzle)
+        s,f = hill_climbing(s,20,puzzle)
+        if f < fstar:
+            fstar = f
+            star = s
+    return star,fstar
+
 def simulated_annealing(puzzle):
 
     best_s = None
@@ -92,17 +277,20 @@ def simulated_annealing(puzzle):
 
     #########################################
     # HYPER PARAMETERS
-    nb_restart = 20
+    nb_restart = 10
     T = 3
     alphaT = 0.92
     betaT = 1
     re_lim = 20
     fast_neighbor = True
+    alpha_grasp = 0.2
+    nb_tries_grasp = 10
     #########################################
 
     for _ in range(nb_restart):
         print("START")
-        s,fs = solve_best_random(puzzle,20)
+        # s,fs = solve_best_random(puzzle,20)
+        s,fs = grasp(puzzle,alpha_grasp,nb_tries_grasp)
         star = s
         fstar = fs
 
@@ -110,14 +298,14 @@ def simulated_annealing(puzzle):
         maxT = T
 
         change = True
-        for i in range(1000):
+        for i in range(1000): # TODO : change with time
             if re_count >= re_lim:
-                G = fast_neighborhood(star,puzzle) if fast_neighbor else neighborhood(star,puzzle)
+                G = fast_neighborhood_placed(star,puzzle) if fast_neighbor else neighborhood_placed(star,puzzle)
                 # V = validate_neighboorhood(G, clients, W)
                 re_count = 0 # reset counter
                 T = min(T + betaT, maxT)
             if change:
-                G = fast_neighborhood(s,puzzle) if fast_neighbor else neighborhood(s,puzzle)
+                G = fast_neighborhood_placed(s,puzzle) if fast_neighbor else neighborhood_placed(s,puzzle)
                 change = False
             c = G[random.randint(0,len(G)-1)]
             fc = puzzle.get_total_n_conflict(c)
@@ -142,7 +330,6 @@ def simulated_annealing(puzzle):
     
     return best_s,best_f
 
-####################################################
 
 
 ####################################################
@@ -209,7 +396,6 @@ def PMX(parent1,parent2,piece_list):
     child2 = child2[:inter1] + cross1 + child2[inter2+1:]
     return child1, child2
 
-
 def equilibrate(child1,child2,piece_list):
     # remove double pieces and replace with missing pieces
     n = len(piece_list)
@@ -248,7 +434,6 @@ def equilibrate(child1,child2,piece_list):
             child2[e] = p
 
     return child1,child2
-
 
 def mutation(child):
     # rotate (or not) for each piece
@@ -319,7 +504,7 @@ def solve_advance(eternity_puzzle):
     """
     # TODO implement here your solution
 
-    # solution = simulated_annealing(eternity_puzzle)
-    solution = genetic_algorithm(eternity_puzzle)
+    solution = simulated_annealing(eternity_puzzle)
+    # solution = genetic_algorithm(eternity_puzzle)
 
     return solution
