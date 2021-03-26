@@ -34,8 +34,8 @@ class Piece:
     def isWall(self):
         return 0 in self.colors
     def isCorner(self):
-        c = self.colors
-        return (c[N] == 0 and c[E] == 0) or (c[E] == 0 and c[S] == 0) or (c[S] == 0 and c[W] == 0) or (c[W] == 0 and c[N] == 0)
+        c = list(self.colors)
+        return c.count(0) == 2
     def getType(self):
         if self.isCorner(): return 'corner'
         elif self.isWall(): return 'wall'
