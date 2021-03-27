@@ -413,26 +413,26 @@ def get_one_neighbor_placed(s,puzzle):
 
 def simulated_annealing(puzzle):
 
-    print("="*30)
+    print("="*50)
     print("USING SIMULATED ANNEALING WITH GRASP")
-    print("="*30)
+    print("="*50)
 
     best_s = None
     best_f = 1e10
 
     #########################################
     # HYPER PARAMETERS
-    nb_restart = 3
-    T = 0.05
-    maxT = 10
-    alphaT = 0.75
-    betaT = 5
-    re_lim = 1500
-    fast_neighbor = True
-    alpha_grasp = 0.2
-    nb_tries_grasp = 20
+    nb_restart = 2
+    T_init = 0.1
+    maxT = 15
+    alphaT = 0.9
+    betaT = 7
+    re_lim = 2500
+    # fast_neighbor = True
+    alpha_grasp = 0.3
+    nb_tries_grasp = 50
     #########################################
-    nb_minutes = 3
+    nb_minutes = 10
 
     total_time = time.time() # get time, algorithm can run during 10 minutes
 
@@ -449,9 +449,9 @@ def simulated_annealing(puzzle):
             return s,fs
 
         re_count = 0
-        T = maxT
+        T = T_init
 
-        change = True
+        # change = True
         i = -1
         while time.time() - start_time < nb_minutes * 60 / nb_restart:
             i += 1
@@ -470,7 +470,7 @@ def simulated_annealing(puzzle):
             fc = puzzle.get_total_n_conflict(c)
             delta = fc - fs
             if delta < 0 or random.random() < math.exp(-delta/T):
-                change = True
+                # change = True
                 s = c
                 fs = fc
                 if fs < fstar:
