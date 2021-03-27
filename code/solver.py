@@ -1,6 +1,7 @@
 import math
 import random
 import time
+import eternity_puzzle
 
 import numpy as np
 import copy
@@ -58,19 +59,103 @@ def solve_best_random(eternity_puzzle, n_trial):
     return best_solution, best_n_conflict
 
 ####################################################
-# GRASP
+# GRASP 1ST VERSION
 ####################################################
-class Piece:
-    def __init__(self,id,colors):
-        self.id = id
-        self.colors = colors
-    def __str__(self):
-        return f"{self.id} {self.colors}"
-    def __repr__(self):
-        return str(self.id)
-    def __eq__(self, other):
-        if other == None: return False
-        return self.id == other.id
+
+def solve_GRASP(eternity_puzzle, n_trial):
+    """
+    GRASP solution of the problem
+        loop
+            greedy_solution(seed)
+            local search
+            update best
+    :param eternity_puzzle: object describing the input
+    :param n_trial: number of random solution generated
+    :return: a tuple (solution, cost) where solution is a list of the pieces (rotations applied) and
+        cost is the cost of the solution, the solution is the best among the n_trial generated ones
+    """
+
+    best_n_conflict = 1000000
+    best_solution = None
+    for i in range(n_trial):
+        # Greedy Random construction
+        # random seed (padding_color) tied to loop index
+        # if n_trial >= 26, all padding colors will be considered
+        cur_sol, cur_n_conflict = solve_greedyRandom(i, eternity_puzzle)
+        # Initialize neighborhood
+        # N = fast_neighborhood(cur_sol, eternity_puzzle) # old neighborhood without hard constraints
+        N = fast_neighborhood_placed(cur_sol, eternity_puzzle) # new neighborhood
+        loc_best_conflict = eternity_puzzle.get_total_n_conflict(N[0])
+        # Best choice from neighborhood (local search)
+        for j in range(len(N)):
+            loc_cur_conflict = eternity_puzzle.get_total_n_conflict(N[j])
+            if loc_cur_conflict < loc_best_conflict:
+                loc_best_conflict = loc_cur_conflict
+                cur_sol = N[j]
+                cur_n_conflict = loc_cur_conflict
+        # Update Best
+        if cur_n_conflict < best_n_conflict:
+            best_n_conflict = cur_n_conflict
+            best_solution = cur_sol
+
+    assert best_solution != None
+    return best_solution, best_n_conflict
+
+def solve_greedyRandom(padding_color, puzzle):
+    """
+    greedy random solution of the problem (used as GRASP initial sol)
+        first tile chosen at random
+        loop remaining tiles
+            evaluate conflicts of all candidate tiles
+                append candidate tile to current sol
+                pad solution with solid color tile with color = padding_color
+                evaluate conflicts in this solution
+            append (first) lowest conflict tile
+            remove appended tile from candidate list
+    :param puzzle           : object describing the input
+    :param padding_color    : (used as random seed) determines color of padding tiles used in candidate solutions
+    :return: a tuple (solution, cost) where solution is a list of the pieces (rotations applied) and
+        cost is the cost of the solution
+    """
+    solution = []
+    remaining_piece = copy.deepcopy(puzzle.piece_list)
+    rnd_color = padding_color % 26 # MAX 26 possible colors, rnd_color is among these
+    for i in range(puzzle.n_piece):
+        best_n_conflict = 1000
+        # Cycle through all remaining pieces
+        for j in range(len(remaining_piece)):
+            for k in range(4):
+                # cur_sol is a candidate solution, append_piece is a candidate for greedy choice
+                cur_sol = copy.deepcopy(solution)
+                append_piece = copy.deepcopy(remaining_piece[j])
+                append_piece.rotate(k)
+                cur_sol.append(append_piece)
+                # Append len(remaining_piece) rnd_color tiles to pad the solution
+                temp_sol = copy.deepcopy(cur_sol)
+                for l in range(len(remaining_piece)):
+                    pad_piece = eternity_puzzle.Piece(rnd_color, (rnd_color, rnd_color, rnd_color, rnd_color))
+                    temp_sol.append(pad_piece)
+                # Compare number of conflicts in this candidate solution to the best (for the current entry)
+                cur_n_conf = puzzle.get_total_n_conflict(temp_sol)
+                if cur_n_conf < best_n_conflict:
+                    # Save best score index in remaining_piece, correct rotation
+                    piece_idx = j
+                    permutation_idx = k
+                    best_n_conflict = cur_n_conf
+        # Find tile according to above greedy choice
+        piece = remaining_piece[piece_idx]
+        # Apply correct rotation
+        piece.rotate(permutation_idx)
+        # Append this tile to greedy solution
+        solution.append(piece)
+        # Remove this tile from candidate list
+        remaining_piece.remove(piece)
+
+    return solution, puzzle.get_total_n_conflict(solution)
+
+####################################################
+# GRASP 2ND VERSION
+####################################################
 
 def greedy_construction(alpha,puzzle):
     """
@@ -83,7 +168,7 @@ def greedy_construction(alpha,puzzle):
     :return: a list of Pieces, being a solution for the puzzle    
     """
 
-    WALLPIECE = Piece(-1,(0,0,0,0))
+    WALLPIECE = eternity_puzzle.Piece(-1,(0,0,0,0))
 
     pieces = puzzle.piece_list
     size = puzzle.board_size
@@ -102,10 +187,12 @@ def greedy_construction(alpha,puzzle):
             center_pieces.append(p)
 
     new_list = [WALLPIECE for _ in range(size**2)]
-    p = random.choice(center_pieces)
-    center_pieces.pop(center_pieces.index(p))
-    line,col = 1,1
-    new_list[size * line + col] = p
+    # we start of with a first center piece taken by random (if there are center pieces)
+    if len(center_pieces) != 0:
+        p = random.choice(center_pieces)
+        center_pieces.pop(center_pieces.index(p))
+        line,col = 1,1
+        new_list[size * line + col] = p
 
     ### POSITIONNING THE CORNER PIECES
     for line in [0,size-1]:
@@ -224,7 +311,7 @@ def greedy_construction(alpha,puzzle):
                 chosen = random.choice(RCL) # choose by random in RCL
                 center_pieces.pop(center_pieces.index(chosen))
                 new_list[k] = chosen
-     
+    
 
     return new_list
 
@@ -426,15 +513,15 @@ def simulated_annealing(puzzle):
 
     #########################################
     # HYPER PARAMETERS
-    nb_restart = 2
+    nb_restart = 5
     T_init = 0.1
-    maxT = 15
-    alphaT = 0.9
-    betaT = 7
-    re_lim = 2500
+    maxT = 10
+    alphaT = 0.7
+    betaT = 4
+    re_lim = 1200
     # fast_neighbor = True
-    alpha_grasp = 0.3
-    nb_tries_grasp = 50
+    alpha_grasp = 0.1
+    nb_tries_grasp = 30
     #########################################
     nb_minutes = 10
 
@@ -498,7 +585,6 @@ def simulated_annealing(puzzle):
     print(f"Total time: {(time.time() - total_time).__round__()}s")
     
     return best_s,best_f
-
 
 ####################################################
 # GENETIC ALGORITHM (not used)
