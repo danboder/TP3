@@ -412,7 +412,11 @@ def get_one_neighbor_placed(s,puzzle):
     return new_s
 
 def simulated_annealing(puzzle):
-
+    """
+    Uses simulated annealing with grasp greedy construction to find the best solution possible
+    :param puzzle: object describing the puzzle
+    :return tuple: one solution and its associated cost 
+    """
     print("="*50)
     print("USING SIMULATED ANNEALING WITH GRASP")
     print("="*50)
@@ -497,29 +501,10 @@ def simulated_annealing(puzzle):
 
 
 ####################################################
-# GENETIC ALGORITHM
+# GENETIC ALGORITHM (not used)
 ####################################################
 
 def children(parent1,parent2,piece_list):
-    n = len(piece_list)
-    # # IDEA 1 : split in half
-    # child1 = parent1[:int(n/2)] + parent2[int(n/2):]
-    # child2 = parent2[:int(n/2)] + parent1[int(n/2):]
-    # child1,child2 = equilibrate(copy.deepcopy(child1),copy.deepcopy(child2),piece_list)
-
-    # #IDEA 2 : random
-    # child1 = []
-    # child2 = []
-    # for i in range(n):
-    #     if random.randint(0,1) == 0:
-    #         child1.append(parent1[i])
-    #         child2.append(parent2[i])
-    #     else:
-    #         child2.append(parent1[i])
-    #         child1.append(parent2[i])
-    # child1,child2 = equilibrate(child1,child2,piece_list)
-
-    # IDEA 3 : PMX
     child1,child2 = PMX(parent1,parent2,piece_list)
     return child1,child2
 
@@ -561,45 +546,6 @@ def PMX(parent1,parent2,piece_list):
     child1 = child1[:inter1] + cross2 + child1[inter2+1:]
     child2 = child2[:inter1] + cross1 + child2[inter2+1:]
     return child1, child2
-
-def equilibrate(child1,child2,piece_list):
-    # remove double pieces and replace with missing pieces
-    n = len(piece_list)
-    piece_inChild1 = [p.id for p in child1]
-    missing_inChild1 = [p.id for p in piece_list if p.id not in piece_inChild1]
-
-    indexes = [[] for _ in range(n)]
-    for i,p in enumerate(child1):
-        indexes[p.id].append(i) # check if some piece are in double in the child
-    for l in indexes:
-        if len(l) > 1: # if double
-            # random for which one we change
-            random.shuffle(l) 
-            e = l[0]
-            # random chosen element that is missing is child
-            i = random.randint(0,len(missing_inChild1) - 1)
-            id = missing_inChild1.pop(i)
-            p = piece_list[id]
-            # replace
-            child1[e] = p
-    
-    # same for child 2
-    piece_inChild2 = [p.id for p in child2]
-    missing_inChild2 = [p.id for p in piece_list if p.id not in piece_inChild2]
-
-    indexes = [[] for _ in range(n)]
-    for i,p in enumerate(child2):
-        indexes[p.id].append(i)
-    for l in indexes:
-        if len(l) > 1: 
-            random.shuffle(l) 
-            e = l[0]
-            i = random.randint(0,len(missing_inChild2) - 1)
-            id = missing_inChild2.pop(i)
-            p = piece_list[id]
-            child2[e] = p
-
-    return child1,child2
 
 def mutation(child):
     # rotate (or not) for each piece
@@ -667,6 +613,10 @@ def genetic_algorithm(puzzle):
             best_s = s
 
     return best_s, best_f
+
+####################################################
+# MAIN FUNCTION
+####################################################
 
 def solve_advance(eternity_puzzle):
     """
