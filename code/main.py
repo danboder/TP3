@@ -1,4 +1,4 @@
-import eternity_puzzle
+import pygment
 import argparse
 import solver
 
@@ -7,11 +7,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Instances parameters
-    # parser.add_argument('--infile', type=str, default='instances/eternity_trivialA.txt')
-    parser.add_argument('--infile', type=str, default='instances/eternity_A.txt')
-    # parser.add_argument('--infile', type=str, default='instances/eternity_B.txt')
-    # parser.add_argument('--infile', type=str, default='instances/eternity_C.txt')
-    # parser.add_argument('--infile', type=str, default='instances/eternity_Complete.txt')
+    parser.add_argument('--infile', type=str, default='input')
     parser.add_argument('--outfile', type=str, default='output')
     parser.add_argument('--visufile', type=str, default='sol.png')
 
@@ -28,15 +24,13 @@ if __name__ == '__main__':
     print("[INFO] visu file: %s" % args.visufile)
     print("***********************************************************")
 
-    e = eternity_puzzle.EternityPuzzle(args.infile)
-    print(e.piece_list)
+    e = pygment.Pygment(args.infile)
 
-    # solution, cost_sol = solver.solve_best_random(e, 10)
-    solution, cost_sol = solver.solve_advance(e)
+    solution_greedy, cost_sol = solver.solve_greedy(e)
+    print(solution_greedy)
+    print(cost_sol)
 
-    print(solution)
-    print(args.infile,cost_sol)
-    e.display_solution(solution,args.visufile)
-    e.print_solution(solution, args.outfile)
+    e.display_solution(solution_greedy, args.visufile)
+    e.print_solution(solution_greedy, args.outfile)
 
-    print(e.verify_solution(solution))
+    print(e.verify_solution(solution_greedy))
