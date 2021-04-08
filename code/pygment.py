@@ -128,15 +128,15 @@ class Pygment:
             for i in solution:
                 file.write(str(i) + " ")
 
-    def verify_solution(self, solution):
+    def verify_solution(self, solution, display=False):
         for i in range(self.nProducts):
             s = [j for j in range(self.nDays) if self.order(i, j)]
             p = [j for j in range(self.nDays) if solution[j] == i]
             if len(s) != len(p):
-                print("your solution produces {0} items of id {1}, but {2} were asked".format(len(p), i, len(s)))
+                if display: print("your solution produces {0} items of id {1}, but {2} were asked".format(len(p), i, len(s)))
                 return False
             for k in range(len(s)):
                 if s[k] < p[k]:
-                    print("your solution produces some item {0} too late for delivery".format(i))
+                    if display: print("your solution produces some item {0} too late for delivery".format(i))
                     return False
         return True

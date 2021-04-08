@@ -7,7 +7,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Instances parameters
-    parser.add_argument('--infile', type=str, default='input')
+    parser.add_argument('--infile', type=str, default='instances/instanceA')
     parser.add_argument('--outfile', type=str, default='output')
     parser.add_argument('--visufile', type=str, default='sol.png')
 
@@ -26,11 +26,12 @@ if __name__ == '__main__':
 
     e = pygment.Pygment(args.infile)
 
-    solution_greedy, cost_sol = solver.solve_greedy(e)
+    # solution_greedy, cost_sol = solver.solve_greedy(e)
+    solution_greedy, cost_sol = solver.solve_advance(e)
     print(solution_greedy)
     print(cost_sol)
 
     e.display_solution(solution_greedy, args.visufile)
     e.print_solution(solution_greedy, args.outfile)
 
-    print(e.verify_solution(solution_greedy))
+    print(e.verify_solution(solution_greedy,True))
