@@ -3,6 +3,7 @@ import copy
 import random
 import itertools
 import math
+import time
 
 
 def solve_greedy(pyg):
@@ -24,6 +25,9 @@ def solve_greedy(pyg):
             queue.pop(0)
     return output, pyg.solution_total_cost(output)
 
+#######################################
+# First functions 
+#######################################
 
 def neighborhood(solution,pyg):
     neighbors = []
@@ -50,88 +54,274 @@ def hill_climbing(pyg):
                 better = True
     return best_sol, best_score
 
-def destroy(s,pyg,nb_destroyed_var):
-    # TODO
-    # nature de la destruction : ND
 
+#######################################
+# DESTRCTION FUNCTIONS
+#######################################
+
+def destroy_random(s,pyg,nb_destroyed_var):
+    """
+    Destroy a solution by selecting random days and removing the production on these day
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param nb_destroyed_var: number of production days we want to remove
+    :return: a tuple with the destroyed solution, the production types that were removed and
+    the indexes where the were removed in the list
+    """
     l = len(s) # nb of days
     items_removed = []
     index_of_items = []
-    center = random.randint(0,l-1) # for ND dépendance
     for _ in range(nb_destroyed_var):
-        
-        # ND aléatoire
-        # i = random.randint(0,l-1)
-
-        # ND dépendance (variables qui ont les mêmes carac) = toutes les variables dans une période de temps
-        to_add = 6
-        i = random.randint(max(0,center - nb_destroyed_var - to_add), min(l-1, center + nb_destroyed_var + to_add)) 
-        # on prend au hasard mais proche du centre (à +/- le nb d'élément à détruire)
-        # permet que la destruction se fasse dans une periode de temps
-
-        while i in index_of_items:
+        i = random.randint(0,l-1)
+        while i in index_of_items: # no 2 same days
             i = random.randint(0,l-1)
         index_of_items.append(i)
         items_removed.append(s[i])
-    return items_removed,index_of_items
+        s[i] = -1 # no production on that day
+    return s,items_removed,index_of_items
 
-    # - critique (variables qui induisent une hausse de cout) = transition engendre haut cout par exemple
-    return
+def destroy_zone(s,pyg,nb_destroyed_var):
+    """
+    Destroy a solution by selecting random days in a time zone and removing the production on these day
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param nb_destroyed_var: number of production days we want to remove
+    :return: a tuple with the destroyed solution, the production types that were removed and 
+    the indexes where the were removed in the list
+    """
+    sp = copy.deepcopy(s)
+    l = len(sp) # nb of days
+    items_removed = []
+    index_of_items = []
+    center = random.randint(0,l-1) # for ND dépendance
+    range_from_center = nb_destroyed_var + 4
+    for _ in range(nb_destroyed_var):
 
-def reconstruct(s,pyg,items_removed,index_of_items):
-    # print("items",items_removed)
-    # print("indexes",index_of_items)
-    s = copy.deepcopy(s)
-    best_s = copy.deepcopy(s)
-    best_score = pyg.solution_total_cost(s)
-    for new_items in itertools.permutations(items_removed):
+        i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
+        # taken by random but close to chosen center (+/- range)
+        # allows destruction to be in a certain time zone
+        while i in index_of_items: # no 2 same days
+            i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
+
+        index_of_items.append(i)
+        items_removed.append(sp[i])
+        sp[i] = -1
+    return sp,items_removed,index_of_items
+
+def destroy_zone_large(s,pyg,nb_destroyed_var):
+    """
+    Destroy a solution by selecting random days in a bigger time zone and removing the production on these day
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param nb_destroyed_var: number of production days we want to remove
+    :return: a tuple with the destroyed solution, the production types that were removed and 
+    the indexes where the were removed in the list
+    """
+    sp = copy.deepcopy(s)
+    l = len(sp) # nb of days
+    items_removed = []
+    index_of_items = []
+    center = random.randint(0,l-1) # for ND dépendance
+    range_from_center = nb_destroyed_var + 15
+    for _ in range(nb_destroyed_var):
+
+        i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
+        # taken by random but close to chosen center (+/- range)
+        # allows destruction to be in a certain time zone
+        while i in index_of_items: # no 2 same days
+            i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
+
+        index_of_items.append(i)
+        items_removed.append(sp[i])
+        sp[i] = -1
+    return sp,items_removed,index_of_items
+
+#######################################
+# CONSTRUCTION FUNCTIONS
+#######################################
+
+def reconstruct_cp_zone(sp,pyg,items_removed,index_of_items):
+    """
+    Find the best reconstruction possible by testing all possibilities for all the items removed placed at 
+    all days where there is place in a time frame
+    :param s: destroyed solution of the problem
+    :param pyg: object describing the input problem
+    :param items_removed: list of the elements that were removed from s (we need to reinsert these to have a valid solution)
+    :param index_of_items: list of the indexes of where the items were taken
+    :return: best valid solution found
+    """
+    best_s = None
+    best_score = 10e8
+    # for new_items in itertools.permutations(items_removed):
+
+    margin = 2
+    range_min, range_max = min(index_of_items) - margin, max(index_of_items) + margin
+    no_production_days = [i for i,t in enumerate(sp) if t == -1 and i >= range_min and i <= range_max]
+    for comb in itertools.combinations(no_production_days,len(index_of_items)):
+        for new_index in itertools.permutations(comb):
+            s = copy.deepcopy(sp)
+            for i,index in enumerate(new_index):
+                s[index] = items_removed[i]
+            if pyg.verify_solution(s):
+                score = pyg.solution_total_cost(s)
+                if score < best_score:
+                    best_score = score
+                    best_s = s
+    return best_s
+
+def reconstruct_cp_zone_large(sp,pyg,items_removed,index_of_items):
+    """
+    Find the best reconstruction possible by testing all possibilities for all the items removed placed at 
+    all days where there is place in a bigger time frame
+    :param s: destroyed solution of the problem
+    :param pyg: object describing the input problem
+    :param items_removed: list of the elements that were removed from s (we need to reinsert these to have a valid solution)
+    :param index_of_items: list of the indexes of where the items were taken
+    :return: best valid solution found
+    """
+    best_s = None
+    best_score = 10e8
+    # for new_items in itertools.permutations(items_removed):
+
+    margin = 20
+    range_min, range_max = min(index_of_items) - margin, max(index_of_items) + margin
+    no_production_days = [i for i,t in enumerate(sp) if t == -1 and i >= range_min and i <= range_max]
+    for comb in itertools.combinations(no_production_days,len(index_of_items)):
+        for new_index in itertools.permutations(comb):
+            s = copy.deepcopy(sp)
+            for i,index in enumerate(new_index):
+                s[index] = items_removed[i]
+            if pyg.verify_solution(s):
+                score = pyg.solution_total_cost(s)
+                if score < best_score:
+                    best_score = score
+                    best_s = s
+    return best_s
+
+def reconstruct_random_1(sp,pyg,items_removed,index_of_items):
+    """
+    returns one valid permutations taken by random for the removed items
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param items_removed: list of the elements that were removed from s (we need to reinsert these to have a valid solution)
+    :param index_of_items: list of the indexes of where the items were taken
+    :return: solution computed
+    """
+    permutations = []
+    range_min, range_max = min(index_of_items), max(index_of_items)
+    no_production_days = [i for i,t in enumerate(sp) if t == -1 and i >= range_min and i <= range_max]
+    for comb in itertools.combinations(no_production_days,len(index_of_items)):
+        permutations += list(itertools.permutations(comb))
+
+    valid = False
+    while not valid:
+        s = copy.deepcopy(sp)
+        new_index = random.choice(permutations)
+        for i,index in enumerate(new_index):
+            s[index] = items_removed[i]
+        valid = pyg.verify_solution(s)
+    return s
+
+def reconstruct_random_many(sp,pyg,items_removed,index_of_items):
+    """
+    Find the best reconstruction possible from 20 different permutations
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param items_removed: list of the elements that were removed from s (we need to reinsert these to have a valid solution)
+    :param index_of_items: list of the indexes of where the items were taken
+    :return: best valid solution found
+    """
+    best_s = None
+    best_score = 1e10
+
+    permutations = []
+    range_min, range_max = min(index_of_items), max(index_of_items)
+    no_production_days = [i for i,t in enumerate(sp) if t == -1 and i >= range_min and i <= range_max]
+    for comb in itertools.combinations(no_production_days,len(index_of_items)):
+        permutations += list(itertools.permutations(comb))
+    
+    for new_items in random.sample(permutations,min(20,len(permutations))):
+        s = copy.deepcopy(sp)
         for i,item in enumerate(new_items):
             s[index_of_items[i]] = item
         if pyg.verify_solution(s):
             score = pyg.solution_total_cost(s)
             if score < best_score:
                 best_score = score
-                best_s = copy.deepcopy(s)
+                best_s = s
     return best_s
 
+#######################################
+# ACCEPTANCE FUNCTION
+#######################################
+
 def acceptSolution(sp,s,pyg,T):
-    # TODO
+    """
+    Acceptance of the new solution based on their score with temperature (simulated annealing)
+    :param sp: new solution proposed
+    :param s: current solution of the problem
+    :param pyg: object describing the input problem
+    :param T: Temperature of the model
+    :return: boolean. True means that we accept the new solution sp
+    """
     fsp = pyg.solution_total_cost(sp)
     fs = pyg.solution_total_cost(s)
     delta = fsp - fs
     return delta < 0 or random.random() < math.exp(-delta/T)
 
-def LNS(pyg):
-    s,score_s = solve_greedy(pyg)
-    star = s
-    score_star = score_s
+#######################################
+# ALNS
+#######################################
+
+def ALNS(pyg):
+    # for restarts
+    best_s = None
+    best_f = 1e10
 
     #########################
     # HYPERPARAMETRES
-    iterations = 5000
+    iterations = 10000
     nb_destroyed_var = 3
     temperature = 4
-    alphaT = 0.95
-    reheat = 3
-    iterations_to_reheat = 50
+    alphaT = 0.8
+    reheat = 5
+    iterations_to_reheat = 150
     #########################
+
+    s,fs = solve_greedy(pyg)
+    star = s
+    fstar = fs
     no_change_iter = 0
+    T = temperature
+
+    # ALNS
+    omega_m = [destroy_random,destroy_zone,destroy_zone_large]
+    rho_m = [1,1,1]
+    omega_p = [reconstruct_cp_zone,reconstruct_cp_zone_large,reconstruct_random_1,reconstruct_random_many]
+    rho_p = [1,1,1,1]
 
     for k in range(iterations):
-        if k%10 == 0:
+        if k%20 == 0:
             print(f"Iter {k}, best solution's cost : {pyg.solution_total_cost(star)}")
-        items_removed,index_of_items = destroy(s,pyg,nb_destroyed_var)
-        sp = reconstruct(s,pyg,items_removed,index_of_items)
-        if acceptSolution(sp,s,pyg,temperature):
-            s = sp
-            no_change_iter = 0
-        if pyg.solution_total_cost(sp) < score_star:
-            star = sp
-        temperature *= alphaT
-        if s == star: no_change_iter += 1
         if no_change_iter > iterations_to_reheat:
+            print("REHEAT")
+            s = star
+            no_change_iter = 0
             temperature += reheat
-            no_change_iter
+        
+        sp,items_removed,index_of_items = destroy_zone(s,pyg,nb_destroyed_var)
+        # sp = reconstruct(s,pyg,items_removed,index_of_items)
+        sp = reconstruct_cp_zone(sp,pyg,items_removed,index_of_items)
+        if acceptSolution(sp,s,pyg,temperature): 
+            s = sp
+        else: 
+            no_change_iter += 1
+        fsp = pyg.solution_total_cost(sp)
+        if fsp < fstar:
+            no_change_iter = 0
+            star = sp
+            fstar = fsp
+        temperature *= alphaT
     return star,pyg.solution_total_cost(star)
 
 
