@@ -57,10 +57,17 @@ def destroy(s,pyg,nb_destroyed_var):
     l = len(s) # nb of days
     items_removed = []
     index_of_items = []
+    center = random.randint(0,l-1) # for ND dépendance
     for _ in range(nb_destroyed_var):
         
         # ND aléatoire
-        i = random.randint(0,l-1)
+        # i = random.randint(0,l-1)
+
+        # ND dépendance (variables qui ont les mêmes carac) = toutes les variables dans une période de temps
+        to_add = 6
+        i = random.randint(max(0,center - nb_destroyed_var - to_add), min(l-1, center + nb_destroyed_var + to_add)) 
+        # on prend au hasard mais proche du centre (à +/- le nb d'élément à détruire)
+        # permet que la destruction se fasse dans une periode de temps
 
         while i in index_of_items:
             i = random.randint(0,l-1)
@@ -68,7 +75,6 @@ def destroy(s,pyg,nb_destroyed_var):
         items_removed.append(s[i])
     return items_removed,index_of_items
 
-    # - dépendance (variables qui ont les mêmes carac) = toutes les variables dans une période de temps
     # - critique (variables qui induisent une hausse de cout) = transition engendre haut cout par exemple
     return
 
@@ -86,7 +92,6 @@ def reconstruct(s,pyg,items_removed,index_of_items):
             if score < best_score:
                 best_score = score
                 best_s = copy.deepcopy(s)
-                print("UPDATE")
     return best_s
 
 def acceptSolution(sp,s,pyg,T):
@@ -103,22 +108,30 @@ def LNS(pyg):
 
     #########################
     # HYPERPARAMETRES
-    iterations = 10
-    nb_destroyed_var = 5
-    temperature = 3
-    alphaT = 0.9
+    iterations = 5000
+    nb_destroyed_var = 3
+    temperature = 4
+    alphaT = 0.95
+    reheat = 3
+    iterations_to_reheat = 50
     #########################
-
+    no_change_iter = 0
 
     for k in range(iterations):
-        print(k)
+        if k%10 == 0:
+            print(f"Iter {k}, best solution's cost : {pyg.solution_total_cost(star)}")
         items_removed,index_of_items = destroy(s,pyg,nb_destroyed_var)
         sp = reconstruct(s,pyg,items_removed,index_of_items)
         if acceptSolution(sp,s,pyg,temperature):
             s = sp
+            no_change_iter = 0
         if pyg.solution_total_cost(sp) < score_star:
             star = sp
         temperature *= alphaT
+        if s == star: no_change_iter += 1
+        if no_change_iter > iterations_to_reheat:
+            temperature += reheat
+            no_change_iter
     return star,pyg.solution_total_cost(star)
 
 
