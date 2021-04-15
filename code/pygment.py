@@ -1,5 +1,15 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-
+import random 
+ 
+from cycler import cycler
+colors = ["#eb4034","#de6ac7","#cf6d23",
+    "#c2906b","#c2b851","#edd909",
+    "#b0e809","#50660d","#cb09ed",
+    "#0cf210","#0c9648","#11f7d1",
+    "#0bb9e0","#083f82","#0a29f2"]
+# mpl.rcParams['axes.prop_cycle'] = cycler(color='bgrcmyk')
+mpl.rcParams['axes.prop_cycle'] = cycler(color=colors)
 
 class Pygment:
 
@@ -103,9 +113,10 @@ class Pygment:
 
         for i in range(self.nProducts):
             prod_y = [1 if j == i else 0 for j in solution]
-            ax[1].bar(x, prod_y, 0.5, label='item ' + str(i))
+            b =ax[1].bar(x, prod_y, 0.5, label='item ' + str(i))
         ax[1].set_title("Schedule (total transition cost = {0})".format(self.solution_transition_cost(solution)))
         ax[1].set_xlim([-1, self.nDays])
+        ax[1].legend(loc="center left", bbox_to_anchor=(0.5, 1.15), ncol=2)
 
         storage_y = [0 for i in range(self.nDays)]
         for i in range(self.nDays):
