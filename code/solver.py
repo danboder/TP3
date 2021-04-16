@@ -461,16 +461,15 @@ def ALNS(pyg):
     #########################
     # HYPERPARAMETRES
     time_allowed = 10 # in minutes
-    nb_destroyed_var = 4
+    nb_destroyed_var = 3
     temperature = 1
     alphaT = 0.8
-    reheat = 7
-    iterations_to_reheat = 500
-    lambda_w = 0.9
+    reheat = 1000
+    iterations_to_reheat = 40
+    lambda_w = 0.8
     hill_climbing_every = 20
-    print_every = 200
+    print_every = 100
     #########################
-    print("ALNS")
     print(50*"=")
     print("Destroyed Variables :",nb_destroyed_var)
     print("Temperature :",temperature)
@@ -499,16 +498,16 @@ def ALNS(pyg):
     destroy_functions = [destroy_random,destroy_zone,destroy_zone_large,destroy_zone_short]
     d_to_use = [1,1,1,1]
     omega_m = [destroy_functions[i] for i,b in enumerate(d_to_use) if b == 1]
-    print("Destruct Functions",omega_m)
+    print("Destruct Functions",list(map(lambda f: f.__name__, omega_m)))
     rho_m = [1 for i,b in enumerate(d_to_use) if b == 1]
     
     construct_functions = [reconstruct_cp_zone,reconstruct_cp_zone_large,reconstruct_random_1,reconstruct_random_many,reconstruct_types]
     r_to_use = [1,1,1,1,1]
     omega_p = [construct_functions[i] for i,b in enumerate(r_to_use) if b == 1]
-    print("Construction Functions",omega_p)
+    print("Construction Functions", list(map(lambda f: f.__name__, omega_p)))
     rho_p = [1 for i,b in enumerate(r_to_use) if b == 1]
     
-    W = [6,5,4,0.5]
+    W = [12,9,6,0.5]
     W = sorted(W,reverse=True) # w1 > w2 > w3 > w4
     print("W",W)
     print(50*"=")
@@ -517,7 +516,7 @@ def ALNS(pyg):
     while time.time() - start < time_allowed * 60:
         k += 1
         if k % print_every == 0:
-            print(f"Iter {k}, current best solution : {fstar}")
+            print(f"Iter {k}, current solution : {fs}, best solution : {fstar}")
             print('Rho -',rho_m)
             print('Rho +',rho_p)
         if k % hill_climbing_every == 0:
@@ -526,7 +525,7 @@ def ALNS(pyg):
                 no_change_iter = 0
                 star = s
                 fstar = fs
-                print(f"New best : {fstar}")
+                print(f"{k} New best with HC : {fstar}")
         if no_change_iter > iterations_to_reheat:
             print("REHEAT")
             s = star
@@ -552,7 +551,8 @@ def ALNS(pyg):
             s = sp
             fs = fsp
             psi = W[1] # w2 if solution is better
-        elif random.random() < math.exp(-delta/T):
+        elif delta != 0 and random.random() < math.exp(-delta/T):
+            print("accepted with probability",math.exp(-delta/T))
             s = sp
             fs = fsp
             psi = W[2] # w3 if solution is accepted but not better
@@ -565,11 +565,11 @@ def ALNS(pyg):
             star = sp
             fstar = fsp
             psi = W[0] # w1 if solution is the best found yet
-            print(f"New best : {fstar}")
+            print(f"{k} New best : {fstar}")
 
         update_weights(rho_m,rho_p,i_d,i_r,psi,lambda_w) 
 
-        temperature *= alphaT
+        T *= alphaT
     return star,pyg.solution_total_cost(star)
 
 

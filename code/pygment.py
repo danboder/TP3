@@ -116,7 +116,7 @@ class Pygment:
             b =ax[1].bar(x, prod_y, 0.5, label='item ' + str(i))
         ax[1].set_title("Schedule (total transition cost = {0})".format(self.solution_transition_cost(solution)))
         ax[1].set_xlim([-1, self.nDays])
-        ax[1].legend(loc="center left", bbox_to_anchor=(0.5, 1.15), ncol=2)
+        # ax[1].legend(loc="center left", bbox_to_anchor=(0.5, 1.15), ncol=2)
 
         storage_y = [0 for i in range(self.nDays)]
         for i in range(self.nDays):
