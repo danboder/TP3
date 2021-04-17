@@ -745,18 +745,19 @@ def ALNS(pyg):
     #########################
     # HYPERPARAMETRES
     time_allowed = 10 # in minutes
-    nb_destroyed_var = 4
+    nb_destroyed_var = 2
     temperature = 1
     alphaT = 0.8
     reheat = 1000
-    iterations_to_reheat = 25
-    lambda_w = 0.95
-    hill_climbing_every = 10
-    W = [4,3,2,0.5] # w1 > w2 > w3 > w4
-    d_to_use = [0,1,0,1] # destruction fonctions to use (1 = we use it)
-    r_to_use = [1,0,1,1,1] # same for reconstruction
+    iterations_to_reheat = 200
+    lambda_w = 0.9
+    hill_climbing_every = 50
+    W = [5,3,2,0.5] # w1 > w2 > w3 > w4
+    d_to_use = [1,1,1,1] # destruction fonctions to use (1 = we use it)
+    r_to_use = [1,1,1,1,1] # same for reconstruction
+    with_initial = True # Ture : solve with greedy grasp random, false : succesion of 2 hill climbing algorithms
     #########################
-    print_every = 70
+    print_every = 500
 
     destroy_functions = [destroy_random,destroy_zone,destroy_zone_large,destroy_zone_short]
     omega_m = [destroy_functions[i] for i,b in enumerate(d_to_use) if b == 1]
@@ -774,6 +775,7 @@ def ALNS(pyg):
     print("iterations_to_reheat :",iterations_to_reheat)
     print("lambda_w :",lambda_w)
     print("hill_climbing_every :",hill_climbing_every)
+    print("with_initial :",with_initial)
     print(50*"=")
     print("Destruct Functions",list(map(lambda f: f.__name__, omega_m)))
     print("Construction Functions", list(map(lambda f: f.__name__, omega_p)))
@@ -783,12 +785,15 @@ def ALNS(pyg):
     start = time.time()
 
     # get good first solution
-    # s,fs = solve_greedy(pyg)
-    # s,fs = hill_climbing_fast(pyg,s)
-    # s,fs = hill_climbing_fast2(pyg,s)
-    # s,fs = hill_climbing_fast(pyg,s)
-    # s,fs = hill_climbing_fast2(pyg,s)
-    s, fs = solve_grasp_hc(pyg, 1500, 4)
+    
+    if with_initial:
+        s, fs = solve_grasp_hc(pyg, 1500, 4)
+    else:
+        s,fs = solve_greedy(pyg)
+        s,fs = hill_climbing_fast(pyg,s)
+        s,fs = hill_climbing_fast2(pyg,s)
+        s,fs = hill_climbing_fast(pyg,s)
+        s,fs = hill_climbing_fast2(pyg,s)
 
     star = s
     fstar = fs
@@ -835,7 +840,7 @@ def ALNS(pyg):
             fs = fsp
             psi = W[1] # w2 if solution is better
         elif delta != 0 and random.random() < math.exp(-delta/T):
-            print("accepted with probability",math.exp(-delta/T))
+            print(k,"accepted with probability",math.exp(-delta/T))
             s = sp
             fs = fsp
             psi = W[2] # w3 if solution is accepted but not better
