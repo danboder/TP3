@@ -133,7 +133,11 @@ def destroy_random(s,pyg,nb_destroyed_var):
     index_of_items = []
     for _ in range(nb_destroyed_var):
         i = random.randint(0,l-1)
+        start = time.time()
         while i in index_of_items or sp[i] == -1: # no 2 same days
+            if time.time() - start > 2: # this prevents the while to loop infinitely
+                # but behaviour will be like complete random
+                center = random.randint(0,l-1)
             i = random.randint(0,l-1)
         index_of_items.append(i)
         items_removed.append(sp[i])
@@ -166,7 +170,11 @@ def destroy_zone(s,pyg,nb_destroyed_var):
         i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
         # taken by random but close to chosen center (+/- range)
         # allows destruction to be in a certain time zone
+        start = time.time()
         while i in index_of_items or sp[i] == -1: # no 2 same days
+            if time.time() - start > 2: # this prevents the while to loop infinitely
+                # but behaviour will be like complete random
+                center = random.randint(0,l-1)
             i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
 
         index_of_items.append(i)
@@ -200,7 +208,11 @@ def destroy_zone_large(s,pyg,nb_destroyed_var):
         i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
         # taken by random but close to chosen center (+/- range)
         # allows destruction to be in a certain time zone
+        start = time.time()
         while i in index_of_items: # no 2 same days
+            if time.time() - start > 2: # this prevents the while to loop infinitely
+                # but behaviour will be like complete random
+                center = random.randint(0,l-1)
             i = random.randint(max(0,center - range_from_center), min(l-1, center + range_from_center)) 
 
         index_of_items.append(i)
@@ -453,23 +465,48 @@ def reconstruct_types(sp,s_init,pyg,items_removed,index_of_items):
 #######################################
 
 def update_weights(rho_m,rho_p,i_d,i_r,psi,lambda_w):
+    """
+    Function to update the weights related to the destruction and construction functions
+    :param rho_m: weights related to the destruction functions
+    :param rho_p: weights related to the construction functions
+    :param i_d: index of the destruction fonction used
+    :param i_r: index of the reconstruction fonction used
+    :param psi: Psi value used for the update
+    :param lambda_w: defines by how much we update the variable 
+    """
     rho_m[i_d] = lambda_w*rho_m[i_d] + (1-lambda_w)*psi
     rho_p[i_r] = lambda_w*rho_p[i_r] + (1-lambda_w)*psi
 
 def ALNS(pyg):
+    """
+    Using ALNS to solve our instance problem
+    :param pyg: instance of the problem
+    """
 
     #########################
     # HYPERPARAMETRES
     time_allowed = 10 # in minutes
-    nb_destroyed_var = 3
+    nb_destroyed_var = 5
     temperature = 1
-    alphaT = 0.8
+    alphaT = 0.9
     reheat = 1000
-    iterations_to_reheat = 40
-    lambda_w = 0.8
-    hill_climbing_every = 20
-    print_every = 100
+    iterations_to_reheat = 15
+    lambda_w = 0.95
+    hill_climbing_every = 10
+    W = [4,3,2,0.5] # w1 > w2 > w3 > w4
+    d_to_use = [1,1,1,1] # destruction fonctions to use (1 = we use it)
+    r_to_use = [1,1,1,1,1] # same for reconstruction
     #########################
+    print_every = 70
+
+    destroy_functions = [destroy_random,destroy_zone,destroy_zone_large,destroy_zone_short]
+    omega_m = [destroy_functions[i] for i,b in enumerate(d_to_use) if b == 1]
+    rho_m = [1 for i,b in enumerate(d_to_use) if b == 1]
+    
+    construct_functions = [reconstruct_cp_zone,reconstruct_cp_zone_large,reconstruct_random_1,reconstruct_random_many,reconstruct_types]
+    omega_p = [construct_functions[i] for i,b in enumerate(r_to_use) if b == 1]
+    rho_p = [1 for i,b in enumerate(r_to_use) if b == 1]
+
     print(50*"=")
     print("Destroyed Variables :",nb_destroyed_var)
     print("Temperature :",temperature)
@@ -479,38 +516,24 @@ def ALNS(pyg):
     print("lambda_w :",lambda_w)
     print("hill_climbing_every :",hill_climbing_every)
     print(50*"=")
+    print("Destruct Functions",list(map(lambda f: f.__name__, omega_m)))
+    print("Construction Functions", list(map(lambda f: f.__name__, omega_p)))
+    print("W",W)
+    print(50*"=")
 
-    
     start = time.time()
 
+    # get good first solution
     s,fs = solve_greedy(pyg)
     s,fs = hill_climbing_fast(pyg,s)
     s,fs = hill_climbing_fast2(pyg,s)
     s,fs = hill_climbing_fast(pyg,s)
     s,fs = hill_climbing_fast2(pyg,s)
-    # good first solution
+
     star = s
     fstar = fs
     no_change_iter = 0
     T = temperature
-
-    # ALNS
-    destroy_functions = [destroy_random,destroy_zone,destroy_zone_large,destroy_zone_short]
-    d_to_use = [1,1,1,1]
-    omega_m = [destroy_functions[i] for i,b in enumerate(d_to_use) if b == 1]
-    print("Destruct Functions",list(map(lambda f: f.__name__, omega_m)))
-    rho_m = [1 for i,b in enumerate(d_to_use) if b == 1]
-    
-    construct_functions = [reconstruct_cp_zone,reconstruct_cp_zone_large,reconstruct_random_1,reconstruct_random_many,reconstruct_types]
-    r_to_use = [1,1,1,1,1]
-    omega_p = [construct_functions[i] for i,b in enumerate(r_to_use) if b == 1]
-    print("Construction Functions", list(map(lambda f: f.__name__, omega_p)))
-    rho_p = [1 for i,b in enumerate(r_to_use) if b == 1]
-    
-    W = [12,9,6,0.5]
-    W = sorted(W,reverse=True) # w1 > w2 > w3 > w4
-    print("W",W)
-    print(50*"=")
 
     k = -1
     while time.time() - start < time_allowed * 60:
@@ -591,11 +614,12 @@ def solve_advance(pyg):
     # TODO implement here your solution
     # return solve_greedy(pygment)
 
+    # start = time.time()
     # s,fs = solve_greedy(pyg)
-    # print(fs)
-    # s,fs = hill_climbing_fast2(pyg,s)
-    # print(fs)
     # s,fs = hill_climbing_fast(pyg,s)
-    # print(fs)
+    # s,fs = hill_climbing_fast2(pyg,s)
+    # s,fs = hill_climbing_fast(pyg,s)
+    # s,fs = hill_climbing_fast2(pyg,s)
+    # print(time.time() - start)
     s,fs = ALNS(pyg)
     return s,fs
