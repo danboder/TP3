@@ -103,6 +103,61 @@ def hill_climbing_fast2(pyg,solution):
                     break
     return star,fstar
 
+#######################################
+# Greedy Random Restart initial solution
+#######################################
+
+def solve_greedy_random(pyg, seed):
+    """
+    Greedy random
+    -> Same as greedy solution, but includes a random seeded shuffle of queues
+    """
+    output = [-1 for _ in range(pyg.nDays)]
+    queue = []
+    for i in reversed(range(pyg.nDays)):
+        for j in range(pyg.nProducts):
+            if pyg.order(j, i):
+                queue.append(j)
+        # Add random process (shuffle list according to random seed) #
+        random.Random(seed + i + j).shuffle(queue)
+        if len(queue) != 0:
+            output[i] = queue[0]
+            queue.pop(0)
+    return output, pyg.solution_total_cost(output)
+
+def solve_restart_GR(pyg, n_trial, n_re):
+
+    best_cost = 1000000
+    best_solution = None
+
+    for i in range(n_trial):
+        # Greedy Random construction
+        cur_sol, cur_cost = solve_greedy_random(pyg, (n_re + 1)*i + random.randint(0, 10))
+        if cur_cost < best_cost:
+            best_cost = cur_cost
+            best_solution = cur_sol
+
+    assert best_solution is not None
+
+    return best_solution, best_cost
+
+def solve_grasp_hc(pyg, n_trial, n_re):
+    best_cost = 1000000
+    best_solution = None
+
+    for i in range(n_re):
+        # Greedy Random construction
+        cur_sol, cur_cost = solve_restart_GR(pyg, n_trial, i)
+        cur_sol, cur_cost = hill_climbing_fast(pyg, cur_sol)
+        if cur_cost < best_cost:
+            best_cost = cur_cost
+            best_solution = cur_sol
+
+    best_solution, best_cost = hill_climbing_fast2(pyg, best_solution)
+
+    assert best_solution is not None
+
+    return best_solution, best_cost
 
 #######################################
 # UTILS
@@ -488,14 +543,14 @@ def ALNS(pyg):
     time_allowed = 10 # in minutes
     nb_destroyed_var = 5
     temperature = 1
-    alphaT = 0.9
+    alphaT = 0.8
     reheat = 1000
-    iterations_to_reheat = 15
+    iterations_to_reheat = 25
     lambda_w = 0.95
     hill_climbing_every = 10
     W = [4,3,2,0.5] # w1 > w2 > w3 > w4
-    d_to_use = [1,1,1,1] # destruction fonctions to use (1 = we use it)
-    r_to_use = [1,1,1,1,1] # same for reconstruction
+    d_to_use = [0,1,0,1] # destruction fonctions to use (1 = we use it)
+    r_to_use = [1,0,1,1,1] # same for reconstruction
     #########################
     print_every = 70
 
@@ -524,11 +579,12 @@ def ALNS(pyg):
     start = time.time()
 
     # get good first solution
-    s,fs = solve_greedy(pyg)
-    s,fs = hill_climbing_fast(pyg,s)
-    s,fs = hill_climbing_fast2(pyg,s)
-    s,fs = hill_climbing_fast(pyg,s)
-    s,fs = hill_climbing_fast2(pyg,s)
+    # s,fs = solve_greedy(pyg)
+    # s,fs = hill_climbing_fast(pyg,s)
+    # s,fs = hill_climbing_fast2(pyg,s)
+    # s,fs = hill_climbing_fast(pyg,s)
+    # s,fs = hill_climbing_fast2(pyg,s)
+    s, fs = solve_grasp_hc(pyg, 1500, 4)
 
     star = s
     fstar = fs

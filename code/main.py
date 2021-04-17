@@ -7,7 +7,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Instances parameters
-    parser.add_argument('--infile', type=str, default='instances/instanceD')
+    parser.add_argument('--infile', type=str, default='instances/instanceB')
     parser.add_argument('--outfile', type=str, default='output')
     parser.add_argument('--visufile', type=str, default='sol.png')
 
