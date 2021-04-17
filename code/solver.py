@@ -160,6 +160,210 @@ def solve_grasp_hc(pyg, n_trial, n_re):
     return best_solution, best_cost
 
 #######################################
+# Simulated Annealing
+#######################################
+
+def simulated_annealing(pyg):
+    """
+    Uses simulated annealing with grasp greedy construction to find the best solution possible. This solution adapted from
+    :param pyg: instance of the problem
+    :return tuple: one SA + GRASP solution and its associated cost
+    """
+    print("=" * 50)
+    print("USING SIMULATED ANNEALING WITH GRASP")
+    print("=" * 50)
+
+    best_s = None
+    best_f = 1e10
+
+    #########################################
+    # HYPER PARAMETERS
+    nb_restart = 5
+    T_init = 0.1
+    maxT = 9
+    alphaT = 0.7
+    betaT = 1.5
+    re_lim = 1200
+    # fast_neighbor = True
+    alpha_grasp = 0.1
+    nb_tries_grasp = 30
+    #########################################
+    nb_minutes = 10
+
+    total_time = time.time()  # get time, algorithm can run during 10 minutes
+
+    for _ in range(nb_restart):
+        print("NEW START")
+        start_time = time.time()
+        # s,fs = solve_best_random(puzzle,20)
+        # s, fs = grasp_construction(puzzle, alpha_grasp, nb_tries_grasp)
+        s, fs = solve_grasp(pyg, nb_tries_grasp)
+        star = s
+        fstar = fs
+
+        if fs == 0:
+            print("Optimal solution found")
+            return s, fs
+
+        re_count = 0
+        T = T_init
+
+        change = True
+        i = -1
+        while time.time() - start_time < nb_minutes * 60 / nb_restart:
+            i += 1
+            if i % 500 == 0:
+                print(f"{i} current best: {fs}")
+            if re_count >= re_lim:
+                # G = fast_neighborhood_placed(star,puzzle) if fast_neighbor else neighborhood_placed(star,puzzle)
+                # G = neighborhood(s, pyg)
+                s = star
+                re_count = 0  # reset counter
+                T = min(T + betaT, maxT)
+            if change:
+                # G = fast_neighborhood_placed(s,puzzle) if fast_neighbor else neighborhood_placed(s,puzzle)
+                G = neighborhood(s, pyg)
+                change = False
+            c = G[random.randint(0, len(G) - 1)]
+            # c = get_one_neighbor_placed(s, puzzle)
+            fc = pyg.solution_total_cost(c)
+            delta = fc - fs
+            if delta < 0 or random.random() < math.exp(-delta / T):
+                change = True
+                s = c
+                fs = fc
+                if fs < fstar:
+                    re_count = 0
+                    star = s
+                    fstar = fs
+                    print("improvement at", i, ":", fstar)
+                    if fstar == 0:
+                        print("Optimal solution found")
+                        return s, fs
+            else:
+                re_count += 1
+            T = alphaT * T
+
+        if fstar < best_f:
+            print("NEW BEST", fstar)
+            best_f = fstar
+            best_s = star
+        print(f"Time taken: {(time.time() - start_time).__round__()}s")
+
+    print(f"Total time: {(time.time() - total_time).__round__()}s")
+
+    return best_s, best_f
+
+def solve_grasp(pyg, n_trial):
+    """
+    GRASP solution of the problem, uses neighborhood search to improve random solutions
+    :param pyg: instance of the problem
+    :param n_trial: number of trials of the greedy random solution for the grasp loop
+    :return tuple: one GRASP solution and its associated cost
+    """
+    best_cost = 1000000
+    best_solution = None
+
+    for i in range(n_trial):
+        # Greedy Random construction
+        cur_sol, cur_cost = solve_greedy_random(pyg, i)
+        # Initialize neighborhood
+        N = neighborhood(cur_sol, pyg)
+        loc_best_cost = pyg.solution_total_cost(N[0])
+        # (First) Best choice from neighborhood (local search)
+        # for j in range(len(N)):
+        new_best = False
+        j = 0
+        while not new_best and j < len(N):
+            loc_cur_cost = pyg.solution_total_cost(N[j])
+            if loc_cur_cost < loc_best_cost and pyg.verify_solution(N[j]):
+                loc_best_cost = loc_cur_cost
+                cur_sol = N[j]
+                cur_cost = loc_cur_cost
+                new_best = True
+            j += 1
+        # Update Best
+        if cur_cost < best_cost:
+            best_cost = cur_cost
+            best_solution = cur_sol
+
+    assert best_solution is not None
+
+    return best_solution, best_cost
+
+#######################################
+# Greedy Random Restart initial solution
+#######################################
+
+def solve_greedy_random(pyg, seed):
+    """
+    Greedy random
+    -> Same as greedy solution, but includes a random seeded shuffle of queues
+    :param pyg: instance of the problem
+    :param seed: seed for the random shuffle of the queues
+    :return tuple: one greedy random solution and its associated cost
+    """
+    output = [-1 for _ in range(pyg.nDays)]
+    queue = []
+    for i in reversed(range(pyg.nDays)):
+        for j in range(pyg.nProducts):
+            if pyg.order(j, i):
+                queue.append(j)
+        # Add random process (shuffle list according to random seed) #
+        random.Random(seed + i + j).shuffle(queue)
+        if len(queue) != 0:
+            output[i] = queue[0]
+            queue.pop(0)
+    return output, pyg.solution_total_cost(output)
+
+def solve_restart_GR(pyg, n_trial, n_re):
+    """
+    Greedy random solution, same as the GRASP code, but does not implement the neighborhood search
+    :param pyg: instance of the problem
+    :param n_trial: number of trials of the greedy random solution for the grasp loop
+    :param n_re: number of restarts, passed down from the solve_grasp_hc to keep the seeds more random
+    :return tuple: one greedy random solution and its associated cost
+    """
+    best_cost = 1000000
+    best_solution = None
+
+    for i in range(n_trial):
+        # Greedy Random construction
+        cur_sol, cur_cost = solve_greedy_random(pyg, (n_re + 1) * i + random.randint(0, 10))
+        if cur_cost < best_cost:
+            best_cost = cur_cost
+            best_solution = cur_sol
+
+    assert best_solution is not None
+
+    return best_solution, best_cost
+
+def solve_grasp_hc(pyg, n_trial, n_re):
+    """
+    Greedy random restarts solution, with hill climbing implemented
+    :param pyg: instance of the problem
+    :param n_trial: number of trials of the greedy random solution for the grasp loop
+    :param n_re: number of restarts
+    :return tuple: one greedy random solution and its associated cost
+    """
+    best_cost = 1000000
+    best_solution = None
+
+    for i in range(n_re):
+        # Greedy Random construction
+        cur_sol, cur_cost = solve_restart_GR(pyg, n_trial, i)
+        cur_sol, cur_cost = hill_climbing_fast(pyg, cur_sol)
+        if cur_cost < best_cost:
+            best_cost = cur_cost
+            best_solution = cur_sol
+
+    best_solution, best_cost = hill_climbing_fast2(pyg, best_solution)
+
+    assert best_solution is not None
+
+    return best_solution, best_cost
+
+#######################################
 # UTILS
 #######################################
 
@@ -541,7 +745,7 @@ def ALNS(pyg):
     #########################
     # HYPERPARAMETRES
     time_allowed = 10 # in minutes
-    nb_destroyed_var = 5
+    nb_destroyed_var = 4
     temperature = 1
     alphaT = 0.8
     reheat = 1000
